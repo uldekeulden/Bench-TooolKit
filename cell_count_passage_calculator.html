@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#f6f4fb" />
+  <title>Cell Count + Passage Calculator</title>
+  <link rel="apple-touch-icon" href="icons/calc-180.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/calc-192.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/calc-32.png">
+  <meta name="apple-mobile-web-app-title" content="Cell Count">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --canvas:#f6f4fb;
+      --surface:#ffffff;
+      --surface-2:#f3effa;
+      --surface-3:#faf8fd;
+      --lime:#c2ef4e;
+      --lime-dark:#8fb52f;
+      --purple:#6a5fc1;
+      --purple-dark:#452650;
+      --violet:#422082;
+      --coral:#ffb287;
+      --white:#ffffff;
+      --ink:#1f1633;
+      --muted:#6f6482;
+      --soft:#453a5c;
+      --danger:#e01e2c;
+      --warning:#c9862a;
+      --line:rgba(54,45,89,.16);
+      --radius-card:16px;
+      --radius-pill:999px;
+      --radius-input:6px;
+      --max:1180px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      min-height:100vh;
+      background:var(--canvas);
+      color:var(--ink);
+      font-family:"Rubik", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height:1.45;
+    }
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    a{color:var(--purple)}
+    .shell{max-width:var(--max);margin:0 auto;padding:20px clamp(14px,3vw,32px) 48px}
+    .topbar{
+      position:sticky;top:0;z-index:20;
+      backdrop-filter:blur(16px) saturate(150%);
+      background:color-mix(in srgb,var(--canvas) 88%,transparent);
+      border-bottom:1px solid rgba(54,45,89,.14);
+    }
+    .topbar-inner{
+      max-width:var(--max);margin:0 auto;padding:12px clamp(14px,3vw,32px);
+      display:flex;align-items:center;justify-content:space-between;gap:16px;
+    }
+    .brand{display:flex;align-items:center;gap:10px;min-width:0}
+    .brand-mark{width:16px;height:30px;background:linear-gradient(160deg,var(--purple),var(--lime));clip-path:polygon(0 0,100% 0,62% 100%,0 100%)}
+    .brand strong{font-size:13px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;font-weight:700}
+    .mini-nav{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .mini-nav a{
+      color:var(--soft);text-decoration:none;border:1px solid rgba(54,45,89,.22);border-radius:var(--radius-pill);
+      padding:8px 12px;font:700 11px/1 "Rubik",sans-serif;letter-spacing:.07em;text-transform:uppercase;
+    }
+    .mini-nav a:hover{border-color:var(--purple);color:var(--purple)}
+    .hero{padding:44px 0 26px;display:grid;grid-template-columns:1.4fr .6fr;gap:24px;align-items:end}
+    .eyebrow{font:700 11px/1.2 "Rubik",sans-serif;letter-spacing:.13em;text-transform:uppercase;color:var(--purple);margin-bottom:12px}
+    h1{
+      margin:0;font-family:"Rubik",sans-serif;font-weight:700;
+      font-size:clamp(44px,7vw,84px);line-height:.98;letter-spacing:-.02em;max-width:900px;color:var(--purple-dark);
+    }
+    .hero-copy{color:var(--soft);font-size:15px;max-width:420px;margin:0 0 6px}
+    .hazard-rule{height:6px;margin:8px 0 28px;border-radius:99px;background:linear-gradient(90deg,var(--purple),var(--lime) 55%,var(--coral))}
+    .section{margin:28px 0 42px;scroll-margin-top:76px}
+    .section-head{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:14px}
+    .section-kicker{font:700 11px/1 "Rubik",sans-serif;color:var(--muted);text-transform:uppercase;letter-spacing:.10em}
+    h2{margin:4px 0 0;font-size:clamp(24px,3.4vw,36px);line-height:1.08;letter-spacing:-.02em;font-weight:700;color:var(--ink)}
+    .section-note{max-width:520px;color:var(--muted);font-size:13px;text-align:right}
+    .grid-2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+    .card{background:var(--surface);border:1px solid rgba(54,45,89,.16);border-radius:var(--radius-card);padding:18px;min-width:0;box-shadow:0 10px 28px rgba(69,38,80,.07)}
+    .card.mint{border-color:var(--lime-dark)}
+    .card.uv{border-color:var(--purple)}
+    .card-title{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}
+    .card-title h3{margin:0;font-size:18px;line-height:1.1;font-weight:700}
+    .badge{font:700 10px/1 "Rubik",sans-serif;text-transform:uppercase;letter-spacing:.10em;padding:7px 10px;border-radius:var(--radius-pill);background:var(--lime);color:#2b3308;white-space:nowrap}
+    .badge.uv{background:var(--purple);color:#fff}
+    .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .field{display:flex;flex-direction:column;gap:6px;min-width:0}
+    .field.full{grid-column:1/-1}
+    label{font:700 10px/1.25 "Rubik",sans-serif;text-transform:uppercase;letter-spacing:.09em;color:var(--soft)}
+    .control-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px}
+    input,select{
+      width:100%;min-width:0;background:#fff;color:var(--ink);border:1px solid rgba(54,45,89,.26);border-radius:var(--radius-input);
+      padding:12px 11px;outline:none;transition:border-color .16s,box-shadow .16s;
+    }
+    input:focus,select:focus{border-color:var(--purple);box-shadow:0 0 0 2px color-mix(in srgb,var(--purple) 30%,transparent)}
+    input[readonly]{color:var(--purple-dark);border-color:rgba(106,95,193,.35);background:#f2effa}
+    select{appearance:auto}
+    .unit-select{width:auto;min-width:86px}
+    .help{font-size:11px;color:var(--muted);line-height:1.35}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+    .btn{border:1px solid transparent;border-radius:var(--radius-pill);padding:10px 16px;font:700 11px/1 "Rubik",sans-serif;letter-spacing:.07em;text-transform:uppercase}
+    .btn.primary{background:linear-gradient(135deg,var(--purple),var(--purple-dark));color:#fff;box-shadow:inset 0 1px 3px rgba(0,0,0,.18),0 6px 16px rgba(106,95,193,.28)}
+    .btn.primary:hover{filter:brightness(1.06)}
+    .btn.secondary{background:transparent;color:var(--soft);border-color:rgba(54,45,89,.30)}
+    .btn.secondary:hover{border-color:var(--purple);color:var(--purple)}
+    .results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
+    .metric{background:var(--surface-3);border:1px solid rgba(54,45,89,.14);border-radius:14px;padding:14px;min-height:98px;display:flex;flex-direction:column;justify-content:space-between}
+    .metric.accent{background:var(--lime);color:#2b3308;border-color:var(--lime-dark)}
+    .metric.purple{background:var(--purple);color:#fff;border-color:var(--purple)}
+    .metric-label{font:700 9px/1.2 "Rubik",sans-serif;text-transform:uppercase;letter-spacing:.10em;opacity:.78}
+    .metric-value{font-size:clamp(20px,3.6vw,30px);font-weight:700;letter-spacing:-.02em;overflow-wrap:anywhere}
+    .metric-sub{font-size:11px;opacity:.78;margin-top:3px}
+    .segmented{display:grid;grid-template-columns:1fr 1fr;background:var(--surface-2);border:1px solid rgba(54,45,89,.18);border-radius:var(--radius-pill);padding:4px;margin-bottom:14px}
+    .segmented button{border:0;background:transparent;color:var(--soft);border-radius:var(--radius-pill);padding:11px 12px;font:700 10px/1 "Rubik",sans-serif;text-transform:uppercase;letter-spacing:.08em}
+    .segmented button.active{background:var(--purple);color:#fff}
+    .mode-panel[hidden]{display:none !important}
+    .inline-alert{margin-top:12px;border-left:4px solid var(--warning);background:#fbf1e2;padding:11px 12px;color:#6b4d17;font-size:12px;border-radius:0 8px 8px 0}
+    .inline-alert.error{border-left-color:var(--danger);background:#fdeaec;color:#7a1420}
+    .inline-alert.ok{border-left-color:var(--lime-dark);background:#f2f9e3;color:#3f5410}
+    .formula{margin-top:14px;padding:12px 13px;border:1px dashed rgba(54,45,89,.30);background:var(--surface-2);border-radius:12px;color:var(--soft);font:500 11px/1.55 Monaco,ui-monospace,SFMono-Regular,Menlo,monospace;overflow:auto}
+    .reference-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    .ref-card{padding:14px;border-radius:14px;border:1px solid rgba(54,45,89,.16);background:var(--surface)}
+    .ref-card strong{display:block;margin-bottom:7px;color:var(--ink)}
+    .ref-card span{color:var(--muted);font-size:12px}
+    .footnote{font-size:12px;color:var(--muted);margin-top:12px}
+    footer{border-top:1px solid rgba(54,45,89,.16);padding:24px 0 8px;color:var(--muted);font-size:11px;display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media (max-width:820px){
+      .hero{grid-template-columns:1fr;gap:18px;padding-top:30px}
+      .hero-copy{max-width:650px}
+      .grid-2{grid-template-columns:1fr}
+      .section-head{align-items:flex-start;flex-direction:column}
+      .section-note{text-align:left}
+      .reference-grid{grid-template-columns:1fr 1fr}
+    }
+    @media (max-width:560px){
+      .topbar-inner{align-items:flex-start}
+      .mini-nav{display:none}
+      .shell{padding-inline:12px}
+      .hero{padding-top:24px}
+      h1{font-size:clamp(40px,15vw,64px)}
+      .card{padding:14px;border-radius:14px}
+      .form-grid,.results,.reference-grid{grid-template-columns:1fr}
+      .field.full{grid-column:auto}
+      .control-row{grid-template-columns:minmax(0,1fr) 82px}
+      .metric{min-height:86px}
+      .actions .btn{flex:1}
+    }
+    @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"></span><strong>Cell Math / Bench Tool</strong></div>
+      <nav class="mini-nav" aria-label="Page navigation">
+        <a href="#counting">Counting</a><a href="#passaging">Passaging</a><a href="#reference">Reference</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Research-use calculator · responsive single-file HTML</div>
+        <h1>Count.<br>Seed.<br>Passage.</h1>
+      </div>
+      <p class="hero-copy">Fast bench-side calculations for cell concentration, total yield, count-based seeding, and confluency-based passaging. Designed for desktop and phone use.</p>
+    </section>
+    <div class="hazard-rule" aria-hidden="true"></div>
+
+    <section class="section" id="counting">
+      <div class="section-head">
+        <div><div class="section-kicker">01 / Cell Counting</div><h2>From count to concentration.</h2></div>
+        <div class="section-note">Rule: <strong>cells/mL = (n ÷ 4) × 10⁴</strong>, where n is the total across 4 large squares. Medium volume is converted to mL before total-cell calculation.</div>
+      </div>
+
+      <div class="grid-2">
+        <article class="card mint">
+          <div class="card-title"><h3>Count input</h3><span class="badge">Live</span></div>
+          <div class="form-grid">
+            <div class="field full">
+              <label for="countN">Total count across 4 squares (n)</label>
+              <input id="countN" type="number" min="0" step="any" inputmode="decimal" placeholder="e.g. 170" />
+              <div class="help">Sum of cells in all 4 large corner squares. For cells sitting on a boundary, count only those on two of the four outer edges (e.g. top and left) and skip the other two.</div>
+            </div>
+            <div class="field full">
+              <label for="countVolume">Current suspension / medium volume</label>
+              <div class="control-row">
+                <input id="countVolume" type="number" min="0" step="any" inputmode="decimal" placeholder="e.g. 5" />
+                <select id="countVolumeUnit" class="unit-select" aria-label="Volume unit"><option value="mL">mL</option><option value="uL">µL</option></select>
+              </div>
+            </div>
+          </div>
+          <div class="actions"><button class="btn secondary" id="countReset" type="button">Reset</button></div>
+          <div class="formula">cells/mL = (n ÷ 4) × 10⁴<br>total cells = cells/mL × volume (mL)</div>
+        </article>
+
+        <article class="card">
+          <div class="card-title"><h3>Count result</h3><span class="badge uv">Output</span></div>
+          <div class="results">
+            <div class="metric accent"><div class="metric-label">Cell concentration</div><div><div class="metric-value" id="cellsPerMl">—</div><div class="metric-sub">cells / mL</div></div></div>
+            <div class="metric purple"><div class="metric-label">Total cells now</div><div><div class="metric-value" id="totalCells">—</div><div class="metric-sub">cells in current volume</div></div></div>
+          </div>
+          <div class="inline-alert" id="countStatus">Enter the 4-square total and current volume to calculate.</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="passaging">
+      <div class="section-head">
+        <div><div class="section-kicker">02 / Passaging</div><h2>Choose the model that matches your workflow.</h2></div>
+        <div class="section-note">Count mode calculates suspension volume from cells/mL. Confluency mode uses relative occupied growth area and exponential growth.</div>
+      </div>
+
+      <div class="segmented" role="tablist" aria-label="Passaging calculation mode">
+        <button id="tabCount" class="active" type="button" role="tab" aria-selected="true">Based on cell count</button>
+        <button id="tabConfluency" type="button" role="tab" aria-selected="false">Based on confluency</button>
+      </div>
+
+      <div id="panelCount" class="mode-panel">
+        <div class="grid-2">
+          <article class="card uv">
+            <div class="card-title"><h3>Count-based seeding</h3><span class="badge uv">Exact cells</span></div>
+            <div class="form-grid">
+              <div class="field full">
+                <label for="seedConcentration">Cell concentration</label>
+                <div class="control-row">
+                  <input id="seedConcentration" type="number" min="0" step="any" inputmode="decimal" placeholder="cells/mL" />
+                  <button class="btn secondary" id="importCount" type="button" style="padding-inline:11px">Use count</button>
+                </div>
+              </div>
+              <div class="field">
+                <label for="seedTargetCells">Target cells per well / dish</label>
+                <input id="seedTargetCells" type="number" min="0" step="any" inputmode="decimal" placeholder="e.g. 200000" />
+              </div>
+              <div class="field">
+                <label for="seedVesselCount">Number of wells / dishes</label>
+                <input id="seedVesselCount" type="number" min="1" step="1" inputmode="numeric" value="1" />
+              </div>
+              <div class="field full">
+                <label for="seedVessel">Target culture vessel</label>
+                <select id="seedVessel"></select>
+                <div class="help" id="seedVesselHelp">Reference area and medium volume will appear here.</div>
+              </div>
+              <div class="field full">
+                <label for="seedFinalVolume">Final medium volume per well / dish (optional)</label>
+                <div class="control-row">
+                  <input id="seedFinalVolume" type="number" min="0" step="any" inputmode="decimal" placeholder="optional" />
+                  <select id="seedFinalVolumeUnit" class="unit-select" aria-label="Final volume unit"><option value="mL">mL</option><option value="uL">µL</option></select>
+                </div>
+              </div>
+            </div>
+            <div class="formula">cell suspension per vessel (µL) = target cells ÷ concentration (cells/mL) × 1000</div>
+          </article>
+
+          <article class="card">
+            <div class="card-title"><h3>Seeding result</h3><span class="badge">Per vessel</span></div>
+            <div class="results">
+              <div class="metric accent"><div class="metric-label">Cell suspension</div><div><div class="metric-value" id="seedUlPerVessel">—</div><div class="metric-sub">µL per well / dish</div></div></div>
+              <div class="metric"><div class="metric-label">Total suspension</div><div><div class="metric-value" id="seedTotalUl">—</div><div class="metric-sub">µL for all vessels</div></div></div>
+              <div class="metric purple"><div class="metric-label">Total target cells</div><div><div class="metric-value" id="seedTotalCells">—</div><div class="metric-sub">cells across all vessels</div></div></div>
+              <div class="metric"><div class="metric-label">Fresh medium</div><div><div class="metric-value" id="seedMediumPerVessel">—</div><div class="metric-sub">µL per vessel, if final volume is set</div></div></div>
+            </div>
+            <div class="inline-alert" id="seedStatus">Enter concentration and target cells to calculate.</div>
+          </article>
+        </div>
+      </div>
+
+      <div id="panelConfluency" class="mode-panel" hidden>
+        <div class="grid-2">
+          <article class="card mint">
+            <div class="card-title"><h3>Confluency-based passaging</h3><span class="badge">Relative area</span></div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="currentConfluency">Current confluency</label>
+                <div class="control-row"><input id="currentConfluency" type="number" min="0.1" max="100" step="any" inputmode="decimal" placeholder="e.g. 80" /><span style="align-self:center;color:#aaa;padding:0 8px">%</span></div>
+              </div>
+              <div class="field">
+                <label for="growth24">24 h growth multiplier</label>
+                <input id="growth24" type="number" min="0.01" step="any" inputmode="decimal" value="2" />
+              </div>
+              <div class="field">
+                <label for="currentVessel">Current culture vessel</label>
+                <select id="currentVessel"></select>
+                <div class="help" id="currentVesselHelp"></div>
+              </div>
+              <div class="field">
+                <label for="currentVesselCount">Current source wells / dishes</label>
+                <input id="currentVesselCount" type="number" min="1" step="1" inputmode="numeric" value="1" />
+                <div class="help">For plates, area is per well. Pooling multiple wells? Enter that count here.</div>
+              </div>
+              <div class="field full">
+                <label for="targetVessel">Target culture vessel</label>
+                <select id="targetVessel"></select>
+                <div class="help" id="targetVesselHelp"></div>
+              </div>
+              <div class="field">
+                <label for="cultureTime">Planned culture time</label>
+                <div class="control-row"><input id="cultureTime" type="number" min="0" step="any" inputmode="decimal" value="24" /><select id="cultureTimeUnit" class="unit-select"><option value="h">hours</option><option value="d">days</option></select></div>
+              </div>
+              <div class="field">
+                <label for="desiredConfluency">Desired confluency at that time</label>
+                <div class="control-row"><input id="desiredConfluency" type="number" min="0.1" max="100" step="any" inputmode="decimal" value="80" /><span style="align-self:center;color:#aaa;padding:0 8px">%</span></div>
+              </div>
+              <div class="field full">
+                <label for="targetVesselCount">Number of target wells / dishes</label>
+                <input id="targetVesselCount" type="number" min="1" step="1" inputmode="numeric" value="1" />
+              </div>
+            </div>
+            <div class="formula">growth factor = (24 h multiplier)^(time / 24 h)<br>fraction of pooled current culture needed per target = (desired confluency × target area) ÷ (current confluency × current area × number of current sources × growth factor)</div>
+          </article>
+
+          <article class="card">
+            <div class="card-title"><h3>Passaging result</h3><span class="badge uv">Projected</span></div>
+            <div class="results">
+              <div class="metric accent"><div class="metric-label">Use per target vessel</div><div><div class="metric-value" id="transferPercent">—</div><div class="metric-sub">of the current cell population</div></div></div>
+              <div class="metric purple"><div class="metric-label">Equivalent split</div><div><div class="metric-value" id="splitRatio">—</div><div class="metric-sub">approximately 1 : x</div></div></div>
+              <div class="metric"><div class="metric-label">Target starting confluency</div><div><div class="metric-value" id="startingConfluency">—</div><div class="metric-sub">immediately after seeding</div></div></div>
+              <div class="metric"><div class="metric-label">Total source used</div><div><div class="metric-value" id="totalSourcePercent">—</div><div class="metric-sub">for all requested target vessels</div></div></div>
+            </div>
+            <div class="inline-alert" id="confluencyStatus">Set the current confluency and vessel types to calculate.</div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="reference">
+      <div class="section-head">
+        <div><div class="section-kicker">03 / Reference</div><h2>Culture-vessel area reference.</h2></div>
+        <div class="section-note">Surface areas and approximate growth-medium volumes are drawn from Thermo Fisher's “Useful Numbers for Cell Culture,” except the ibidi 8-well chamber (manufacturer-specified area). Plate/chamber areas are per well.</div>
+      </div>
+      <div class="reference-grid" id="referenceGrid"></div>
+      <p class="footnote">Important: confluency-to-cell-number relationships vary substantially by cell line, morphology, vessel coating, attachment efficiency, and handling. The confluency model is a planning estimate based on relative occupied surface area and the growth multiplier you provide; it does not assume Thermo Fisher's HeLa “cells at confluency” values.</p>
+    </section>
+
+    <footer>
+      <div>Bench planning aid · not a substitute for cell-line-specific SOPs or empirical growth curves.</div>
+      <div>References: <a href="https://getdesign.md/sentry/design-md" target="_blank" rel="noreferrer">design system</a> · <a href="https://www.thermofisher.com/us/en/home/references/gibco-cell-culture-basics/cell-culture-protocols/cell-culture-useful-numbers.html" target="_blank" rel="noreferrer">Thermo Fisher culture-vessel numbers</a></div>
+    </footer>
+  </main>
+
+  <script>
+    const vessels = [
+      {id:'dish35', group:'Dish', name:'35 mm dish', area:8.8, medium:'~2 mL', mediumMid:2},
+      {id:'dish60', group:'Dish', name:'60 mm dish', area:21.5, medium:'~5 mL', mediumMid:5},
+      {id:'dish100', group:'Dish', name:'100 mm dish', area:56.7, medium:'~12 mL', mediumMid:12},
+      {id:'dish150', group:'Dish', name:'150 mm dish', area:145, medium:'~30 mL', mediumMid:30},
+      {id:'plate6', group:'Plate', name:'6-well plate (per well)', area:9.6, medium:'~1–3 mL / well', mediumMid:2},
+      {id:'plate12', group:'Plate', name:'12-well plate (per well)', area:3.5, medium:'~1–2 mL / well', mediumMid:1.5},
+      {id:'plate24', group:'Plate', name:'24-well plate (per well)', area:1.9, medium:'~0.5–1.0 mL / well', mediumMid:0.75},
+      {id:'plate48', group:'Plate', name:'48-well plate (per well)', area:1.1, medium:'~0.2–0.4 mL / well', mediumMid:0.3},
+      {id:'plate96', group:'Plate', name:'96-well plate (per well)', area:0.32, medium:'~0.1–0.2 mL / well', mediumMid:0.15},
+      {id:'plate384', group:'Plate', name:'384-well plate (per well)', area:0.084, medium:'~0.08 mL / well', mediumMid:0.08},
+      {id:'plate1536', group:'Plate', name:'1536-well plate (per well)', area:0.03, medium:'~0.01 mL / well', mediumMid:0.01},
+      {id:'ibidi8', group:'Chamber', name:'ibidi 8-well chamber (per well)', area:0.93, medium:'~0.2–0.3 mL / well', mediumMid:0.25},
+      {id:'t25', group:'Flask', name:'T-25 flask', area:25, medium:'~3–5 mL', mediumMid:4},
+      {id:'t75', group:'Flask', name:'T-75 flask', area:75, medium:'~8–15 mL', mediumMid:11.5},
+      {id:'t175', group:'Flask', name:'T-175 flask', area:175, medium:'~35–53 mL', mediumMid:44},
+      {id:'t225', group:'Flask', name:'T-225 flask', area:225, medium:'~45–68 mL', mediumMid:56.5}
+    ];
+
+    const $ = id => document.getElementById(id);
+    const inputsToWatch = [];
+
+    function finitePositive(v){ return Number.isFinite(v) && v > 0; }
+    function formatNumber(v, digits=3){
+      if(!Number.isFinite(v)) return '—';
+      const a=Math.abs(v);
+      if(a===0) return '0';
+      if(a>=1e6 || a<0.01) return v.toExponential(digits).replace('+','');
+      return v.toLocaleString(undefined,{maximumFractionDigits:digits});
+    }
+    function formatPercent(v){ return Number.isFinite(v) ? `${v.toLocaleString(undefined,{maximumFractionDigits:2})}%` : '—'; }
+    function setStatus(el, msg, type=''){
+      el.textContent=msg;
+      el.className='inline-alert'+(type?` ${type}`:'');
+    }
+    function vesselById(id){ return vessels.find(v=>v.id===id); }
+    function fillVesselSelect(select){
+      const groups=[...new Set(vessels.map(v=>v.group))];
+      select.innerHTML='';
+      groups.forEach(g=>{
+        const og=document.createElement('optgroup');og.label=g;
+        vessels.filter(v=>v.group===g).forEach(v=>{
+          const o=document.createElement('option');o.value=v.id;o.textContent=`${v.name} — ${v.area} cm²`;
+          og.appendChild(o);
+        });
+        select.appendChild(og);
+      });
+    }
+    ['seedVessel','currentVessel','targetVessel'].forEach(id=>fillVesselSelect($(id)));
+    $('seedVessel').value='plate6';
+    $('currentVessel').value='dish100';
+    $('targetVessel').value='plate6';
+
+    function updateVesselHelp(){
+      const s=vesselById($('seedVessel').value);
+      $('seedVesselHelp').textContent=`Surface area: ${s.area} cm². Thermo Fisher approximate growth medium: ${s.medium}.`;
+      const c=vesselById($('currentVessel').value);
+      const t=vesselById($('targetVessel').value);
+      $('currentVesselHelp').textContent=`Reference growth area: ${c.area} cm².`;
+      $('targetVesselHelp').textContent=`Reference growth area: ${t.area} cm².`;
+    }
+
+    function calcCount(){
+      const n=parseFloat($('countN').value);
+      const vol=parseFloat($('countVolume').value);
+      const unit=$('countVolumeUnit').value;
+      if(!(Number.isFinite(n)&&n>=0) || !(Number.isFinite(vol)&&vol>=0)){
+        $('cellsPerMl').textContent='—';$('totalCells').textContent='—';
+        setStatus($('countStatus'),'Enter the 4-square total and current volume to calculate.');
+        return null;
+      }
+      const concentration=(n/4)*1e4;
+      const volMl=unit==='uL'?vol/1000:vol;
+      const total=concentration*volMl;
+      $('cellsPerMl').textContent=formatNumber(concentration);
+      $('totalCells').textContent=formatNumber(total);
+      setStatus($('countStatus'),`${formatNumber(n)} ÷ 4 = ${formatNumber(n/4)} per square; × 10⁴ = ${formatNumber(concentration)} cells/mL; ${formatNumber(volMl)} mL contains ${formatNumber(total)} cells.`,'ok');
+      return {concentration,total,volMl};
+    }
+
+    function calcSeed(){
+      const c=parseFloat($('seedConcentration').value);
+      const target=parseFloat($('seedTargetCells').value);
+      const count=Math.max(1,parseInt($('seedVesselCount').value||'1',10));
+      const finalVol=parseFloat($('seedFinalVolume').value);
+      const finalUnit=$('seedFinalVolumeUnit').value;
+      if(!finitePositive(c) || !(Number.isFinite(target)&&target>=0)){
+        ['seedUlPerVessel','seedTotalUl','seedTotalCells','seedMediumPerVessel'].forEach(id=>$(id).textContent='—');
+        setStatus($('seedStatus'),'Enter concentration and target cells to calculate.');
+        return;
+      }
+      const ul=(target/c)*1000;
+      const totalUl=ul*count;
+      const totalCells=target*count;
+      $('seedUlPerVessel').textContent=formatNumber(ul);
+      $('seedTotalUl').textContent=formatNumber(totalUl);
+      $('seedTotalCells').textContent=formatNumber(totalCells);
+      let mediumText='—';
+      let status=`Add ${formatNumber(ul)} µL of cell suspension to each vessel.`;
+      let statusType='ok';
+      if(Number.isFinite(finalVol) && finalVol>=0){
+        const finalUl=finalUnit==='mL'?finalVol*1000:finalVol;
+        const mediumUl=finalUl-ul;
+        if(mediumUl>=0){
+          mediumText=formatNumber(mediumUl);
+          status+=` Add ${formatNumber(mediumUl)} µL fresh medium to reach ${formatNumber(finalUl)} µL total.`;
+        } else {
+          mediumText='0';
+          status=`Required cell suspension (${formatNumber(ul)} µL) exceeds your chosen final volume (${formatNumber(finalUl)} µL). Concentrate the cells or increase final volume.`;
+          statusType='error';
+        }
+      }
+      $('seedMediumPerVessel').textContent=mediumText;
+      setStatus($('seedStatus'),status,statusType);
+    }
+
+    function calcConfluency(){
+      const current=parseFloat($('currentConfluency').value)/100;
+      const growth=parseFloat($('growth24').value);
+      const desired=parseFloat($('desiredConfluency').value)/100;
+      const time=parseFloat($('cultureTime').value);
+      const timeHours=$('cultureTimeUnit').value==='d'?time*24:time;
+      const nTargets=Math.max(1,parseInt($('targetVesselCount').value||'1',10));
+      const nSources=Math.max(1,parseInt($('currentVesselCount').value||'1',10));
+      const cv=vesselById($('currentVessel').value);
+      const tv=vesselById($('targetVessel').value);
+      const valid=finitePositive(current)&&current<=1&&finitePositive(growth)&&finitePositive(desired)&&desired<=1&&Number.isFinite(timeHours)&&timeHours>=0&&cv&&tv;
+      if(!valid){
+        ['transferPercent','splitRatio','startingConfluency','totalSourcePercent'].forEach(id=>$(id).textContent='—');
+        setStatus($('confluencyStatus'),'Set valid confluencies, growth multiplier, time, and vessel types to calculate.');
+        return;
+      }
+      const growthFactor=Math.pow(growth,timeHours/24);
+      const startTarget=desired/growthFactor;
+      const fraction=(desired*tv.area)/(current*cv.area*nSources*growthFactor);
+      const totalFraction=fraction*nTargets;
+      const split=fraction>0?1/fraction:Infinity;
+      $('transferPercent').textContent=formatPercent(fraction*100);
+      $('splitRatio').textContent=Number.isFinite(split)?`1 : ${formatNumber(split,2)}`:'—';
+      $('startingConfluency').textContent=formatPercent(startTarget*100);
+      $('totalSourcePercent').textContent=formatPercent(totalFraction*100);
+
+      let msg=`Growth factor over ${formatNumber(timeHours,2)} h: ${formatNumber(growthFactor,3)}×. Pooling ${nSources} current source ${nSources===1?'vessel':'vessels'}, use ${formatPercent(fraction*100)} of that pooled cell population per target vessel.`;
+      let type='ok';
+      if(startTarget>1){
+        msg=`The requested endpoint would require a starting target confluency above 100% (${formatPercent(startTarget*100)}). Adjust time, growth multiplier, or target confluency.`;
+        type='error';
+      } else if(fraction>1){
+        msg=`One current vessel is insufficient for one target vessel under these assumptions: ${formatPercent(fraction*100)} of the current cell population would be required.`;
+        type='error';
+      } else if(totalFraction>1){
+        msg=`Per target, use ${formatPercent(fraction*100)} of the current cell population. For ${nTargets} targets you would need ${formatPercent(totalFraction*100)} total, more than one current vessel provides.`;
+        type='error';
+      } else if(startTarget>0.9){
+        msg+=` The implied starting target confluency is high (${formatPercent(startTarget*100)}), so attachment and contact inhibition may make exponential growth less accurate.`;
+        type='';
+      }
+      setStatus($('confluencyStatus'),msg,type);
+    }
+
+    function switchMode(mode){
+      const count=mode==='count';
+      $('panelCount').hidden=!count;$('panelConfluency').hidden=count;
+      $('tabCount').classList.toggle('active',count);$('tabConfluency').classList.toggle('active',!count);
+      $('tabCount').setAttribute('aria-selected',String(count));$('tabConfluency').setAttribute('aria-selected',String(!count));
+    }
+
+    $('tabCount').addEventListener('click',()=>switchMode('count'));
+    $('tabConfluency').addEventListener('click',()=>switchMode('confluency'));
+    $('importCount').addEventListener('click',()=>{
+      const r=calcCount();
+      if(r){$('seedConcentration').value=String(r.concentration);calcSeed();setStatus($('seedStatus'),'Imported the latest cell-count concentration. Enter target cells per vessel.','ok');}
+      else setStatus($('seedStatus'),'Complete the Cell Counting section first.','error');
+    });
+    $('countReset').addEventListener('click',()=>{
+      $('countN').value='';$('countVolume').value='';$('countVolumeUnit').value='mL';calcCount();
+    });
+    $('seedVessel').addEventListener('change',()=>{
+      updateVesselHelp();
+      const v=vesselById($('seedVessel').value);
+      if(!$('seedFinalVolume').value){$('seedFinalVolume').placeholder=`suggested ~${v.mediumMid} mL`;}
+      calcSeed();
+    });
+    ['currentVessel','targetVessel'].forEach(id=>$(id).addEventListener('change',()=>{updateVesselHelp();calcConfluency();}));
+    ['countN','countVolume','countVolumeUnit'].forEach(id=>$(id).addEventListener('input',calcCount));
+    ['seedConcentration','seedTargetCells','seedVesselCount','seedFinalVolume','seedFinalVolumeUnit'].forEach(id=>$(id).addEventListener('input',calcSeed));
+    ['currentConfluency','growth24','cultureTime','cultureTimeUnit','desiredConfluency','targetVesselCount','currentVesselCount'].forEach(id=>$(id).addEventListener('input',calcConfluency));
+
+    const refGroups=['Dish','Plate','Flask','Chamber'];
+    refGroups.forEach(g=>{
+      vessels.filter(v=>v.group===g).forEach(v=>{
+        const d=document.createElement('div');d.className='ref-card';
+        d.innerHTML=`<strong>${v.name}</strong><span>${v.area} cm² growth area · ${v.medium}</span>`;
+        $('referenceGrid').appendChild(d);
+      });
+    });
+
+    updateVesselHelp();
+    $('seedFinalVolume').placeholder=`suggested ~${vesselById($('seedVessel').value).mediumMid} mL`;
+    calcCount();calcSeed();calcConfluency();
+  </script>
+</body>
+</html>

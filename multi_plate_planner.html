@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Plate Planner</title>
+<link rel="apple-touch-icon" href="icons/plate-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/plate-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/plate-32.png">
+<meta name="apple-mobile-web-app-title" content="Plate Planner">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f4fb;
+  --panel:rgba(255,255,255,.70);
+  --panel-strong:rgba(255,255,255,.90);
+  --text:#1f1633;
+  --muted:#6f6482;
+  --line:rgba(54,45,89,.16);
+  --accent:#6a5fc1;
+  --accent-deep:#452650;
+  --accent-mid:#79628c;
+  --accent-soft:rgba(106,95,193,.12);
+  --lime:#c2ef4e;
+  --coral:#ffb287;
+  --pink:#fa7faa;
+  --violet:#422082;
+  --danger:#e01e2c;
+  --shadow:0 18px 46px rgba(69,38,80,.12);
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{
+  margin:0;min-height:100vh;color:var(--text);
+  font-family:"Rubik",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:
+    radial-gradient(circle at 9% 4%,rgba(106,95,193,.10),transparent 27%),
+    radial-gradient(circle at 90% 11%,rgba(194,239,78,.13),transparent 24%),
+    radial-gradient(circle at 70% 78%,rgba(250,127,170,.07),transparent 30%),
+    linear-gradient(180deg,#fbfaff 0%,#f6f4fb 50%,#efe9f7 100%);
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.5;
+  background-image:
+    linear-gradient(rgba(54,45,89,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(54,45,89,.035) 1px,transparent 1px);
+  background-size:30px 30px;
+  mask-image:linear-gradient(to bottom,black,transparent 82%);
+}
+button,input,select,textarea{font:inherit;color:var(--text)}
+button,input[type=text],input[type=number],select,textarea{
+  border:1px solid var(--line);background:rgba(255,255,255,.78);
+  border-radius:8px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+button{
+  padding:8px 12px;cursor:pointer;font-weight:600;font-size:12.5px;
+  text-transform:uppercase;letter-spacing:.03em;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.85);
+  transition:transform .14s ease,background .14s ease,border-color .14s ease,box-shadow .14s ease;
+}
+button:hover{transform:translateY(-1px);background:#fff;border-color:rgba(106,95,193,.32)}
+button:disabled{opacity:.42;cursor:not-allowed;transform:none!important}
+button.primary{
+  color:#fff;background:linear-gradient(135deg,#6a5fc1,#79628c 60%,#452650);
+  border-color:rgba(69,38,80,.55);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.16),0 8px 20px rgba(106,95,193,.28),inset 0 1px 0 rgba(255,255,255,.18);
+}
+button.danger{color:var(--danger)}
+button.small{padding:4px 7px;font-size:11px;text-transform:none;letter-spacing:normal;font-weight:700}
+input[type=text],input[type=number],select,textarea{padding:8px 9px;text-transform:none;border-radius:6px}
+textarea{width:100%;min-height:64px;resize:vertical}
+.app{min-height:100vh}
+.topbar{
+  position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:11px 14px;background:rgba(250,249,253,.74);border-bottom:1px solid rgba(54,45,89,.14);
+  backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%);
+  box-shadow:0 8px 28px rgba(69,38,80,.07);
+}
+.topbar h1{margin:0 12px 0 0;font-size:18px;font-weight:700;letter-spacing:.01em;text-transform:none}
+.spacer{flex:1}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:16px;padding:16px;align-items:start}
+.workspace{display:grid;grid-template-columns:168px minmax(0,1fr);gap:14px;min-width:0;align-items:start}
+.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(480px,100%),560px));gap:12px;min-width:0;align-items:start;justify-content:start}
+.plate-card,.sidebar{
+  min-width:0;background:var(--panel);border:1px solid rgba(69,38,80,.16);border-radius:18px;
+  backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);
+  box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.85);
+}
+.plate-card{overflow:hidden}
+.plate-card.active{border-color:rgba(106,95,193,.50);box-shadow:0 0 0 2px rgba(106,95,193,.10),0 20px 52px rgba(69,38,80,.14)}
+.plate-head{
+  padding:10px 12px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+  border-bottom:1px solid rgba(54,45,89,.14);background:linear-gradient(180deg,rgba(255,255,255,.45),rgba(255,255,255,.16));
+}
+.plate-head .plate-name{font-weight:700;min-width:140px;max-width:250px;text-transform:none}
+.plate-head .plate-type{width:116px}
+.plate-head .meta{font-size:12px;color:var(--muted);text-transform:none}
+.plate-body{display:block;min-width:0}
+.plate-legend{
+  min-width:0;padding:15px 11px 16px 12px;background:rgba(255,255,255,.24);
+}
+.shared-label-panel{
+  position:sticky;top:70px;max-height:calc(100vh - 86px);overflow:auto;
+  border:1px solid rgba(69,38,80,.16);border-radius:16px;
+  background:rgba(255,255,255,.58);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);
+  box-shadow:0 16px 38px rgba(69,38,80,.10),inset 0 1px 0 rgba(255,255,255,.86);
+}
+.shared-label-context{margin:0 0 11px;padding:8px 9px;border-radius:11px;background:linear-gradient(145deg,rgba(106,95,193,.09),rgba(194,239,78,.14));border:1px solid rgba(106,95,193,.14)}
+.shared-label-context .eyebrow{display:block;font-size:8px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+.shared-label-context strong{display:block;font-size:11px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:none}
+.shared-label-context .count{display:block;font-size:9px;color:var(--muted);margin-top:2px;text-transform:none}
+.plate-legend-tools{display:grid;grid-template-columns:1fr;gap:6px;margin-bottom:12px}
+.plate-legend-tools button{width:100%;padding:6px 7px;font-size:10px;font-weight:700;text-align:left}
+.plate-legend-tools .remove-checked-from-wells{color:var(--accent);border-color:rgba(106,95,193,.30);background:rgba(106,95,193,.08)}
+.plate-legend-tools .clear-selected-labels{color:var(--danger);border-color:rgba(224,30,44,.28);background:rgba(224,30,44,.07)}
+.plate-legend h3{margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.legend-group{margin:0 0 12px}
+.legend-group:last-child{margin-bottom:0}
+.legend-mode{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:9px;font-weight:800;letter-spacing:.16em;color:var(--muted)}
+.legend-mode::before{content:"";width:15px;height:3px;border-radius:10px;background:var(--accent)}
+.legend-group.background .legend-mode::before{background:var(--lime);box-shadow:0 0 10px rgba(194,239,78,.60)}
+.plate-legend-item{display:grid;grid-template-columns:22px minmax(0,1fr);gap:6px;align-items:center;margin:4px 0;min-width:0}
+.legend-color{
+  width:22px;height:22px;border-radius:7px;padding:0;border:1px solid rgba(54,45,89,.20);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 2px 8px rgba(69,38,80,.10)
+}
+.legend-apply{
+  min-width:0;padding:5px 7px;text-align:left;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  background:rgba(255,255,255,.48);text-transform:none;letter-spacing:normal
+}
+.legend-empty{font-size:10px;color:var(--muted);padding:3px 1px;text-transform:none}
+.plate-scroll{
+  position:relative;min-width:0;min-height:190px;overflow:auto;padding:16px;
+  -webkit-overflow-scrolling:touch;
+  background:radial-gradient(circle at 50% 0%,rgba(106,95,193,.06),transparent 43%),linear-gradient(180deg,rgba(249,247,253,.60),rgba(241,236,248,.38));
+}
+.plate-scroll::before{
+  content:"";position:absolute;inset:12px;z-index:0;pointer-events:none;border-radius:20px;
+  background:linear-gradient(145deg,rgba(255,255,255,.58),rgba(232,225,246,.18));
+  border:1px solid rgba(255,255,255,.85);
+  box-shadow:0 14px 38px rgba(69,38,80,.10),inset 0 1px 0 rgba(255,255,255,.98),inset 0 -1px 0 rgba(69,38,80,.10),0 0 0 1px rgba(69,38,80,.07);
+  backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);
+}
+.plate-fit{position:relative;z-index:2;margin-inline:auto}
+.plate-shell{display:grid;width:720px;height:482px;user-select:none;position:relative;padding:0;transform-origin:top left}
+.plate-shell::after{
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:16px;
+  background:linear-gradient(145deg,rgba(255,255,255,.32),rgba(233,227,246,.16));
+  border:1px solid rgba(69,38,80,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.85)
+}
+.plate-shell[data-plate-type="8"]::before{
+  content:"CHAMBERED COVERSLIP • 8 WELL";position:absolute;right:18px;top:5px;pointer-events:none;
+  font-size:8px;font-weight:800;letter-spacing:.16em;color:rgba(106,95,193,.40)
+}
+.col-header,.row-header{display:flex;align-items:center;justify-content:center;font-size:11px;color:#7a6f92;font-weight:700;letter-spacing:.04em;z-index:4}
+.well{
+  position:relative;display:flex;align-items:center;justify-content:center;justify-self:center;align-self:center;z-index:3;cursor:crosshair;
+  border:1.6px solid rgba(87,74,122,.42);border-radius:50%;background:rgba(255,255,255,.85);
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.68),0 4px 10px rgba(69,38,80,.06);
+  transition:border-color .13s ease,box-shadow .13s ease,transform .13s ease;
+  touch-action:none;-webkit-tap-highlight-color:transparent;
+}
+@media (hover:hover){
+  .well:hover{border-color:var(--accent);box-shadow:0 0 0 3px rgba(106,95,193,.10),inset 0 0 0 2px rgba(255,255,255,.74)}
+}
+.well.selected{border-color:var(--accent);box-shadow:0 0 0 3px rgba(106,95,193,.22),0 6px 16px rgba(106,95,193,.10),inset 0 0 0 2px rgba(255,255,255,.52)}
+.plate-shell[data-plate-type="8"] .well{
+  border-radius:16px;border-width:1.5px;
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.65),inset 0 -8px 18px rgba(69,38,80,.05),0 5px 12px rgba(69,38,80,.07)
+}
+.well-id{font-weight:700;line-height:1;pointer-events:none;background:none!important;padding:0!important;border-radius:0!important;text-shadow:0 1px 2px rgba(255,255,255,.45)}
+.region{
+  z-index:1;border-radius:11px;border:1px solid rgba(54,45,89,.10);pointer-events:none;
+  margin:4px;overflow:hidden;backdrop-filter:blur(1px);-webkit-backdrop-filter:blur(1px);
+}
+.region.layer-2{outline:1px dashed rgba(106,95,193,.32);outline-offset:-3px}
+.region-caption{z-index:6;pointer-events:none;align-self:start;justify-self:start;margin:5px 0 0 7px;max-width:calc(100% - 14px)}
+.region-caption.layer-2{margin-top:24px}
+.region-caption span{display:inline-block;max-width:100%;padding:3px 6px;border-radius:6px;font-size:9px;font-weight:800;line-height:1.1;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:inset 0 1px 0 rgba(255,255,255,.46);border:1px solid rgba(255,255,255,.60)}
+.drag-box{position:absolute;z-index:20;pointer-events:none;display:none;border:2px solid var(--accent);background:rgba(106,95,193,.10);border-radius:7px;box-shadow:0 0 18px rgba(106,95,193,.18)}
+.empty-state{padding:50px 16px;text-align:center;color:var(--muted);background:rgba(255,255,255,.60);border:1px dashed var(--line);border-radius:16px}
+.sidebar{position:sticky;top:70px;padding:14px;max-height:calc(100vh - 86px);overflow:auto}
+.section{padding-bottom:15px;margin-bottom:15px;border-bottom:1px solid rgba(54,45,89,.12)}
+.section:last-child{border-bottom:0;margin-bottom:0}
+.section h2{font-size:14px;margin:0 0 8px;font-weight:700}
+.subtle{font-size:12px;line-height:1.45;color:var(--muted)}
+.selection-title{font-weight:700;font-size:13px;margin-bottom:4px}
+.selection-list{font-size:12px;color:var(--muted);line-height:1.5;max-height:74px;overflow:auto}
+.actions{display:flex;gap:7px;flex-wrap:wrap}
+.label-bulk-input{width:100%;min-height:96px}
+.label-toolbar{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
+.remove-from-wells{color:var(--accent);border-color:rgba(106,95,193,.30);background:rgba(106,95,193,.08);font-weight:700}
+.remove-from-wells:hover{background:rgba(106,95,193,.14);border-color:rgba(106,95,193,.46)}
+.label-list,.region-list{display:flex;flex-direction:column;gap:7px}
+.label-row{
+  display:grid;grid-template-columns:20px 28px minmax(0,1fr);gap:7px;align-items:center;padding:7px;
+  border:1px solid rgba(54,45,89,.12);border-radius:11px;background:rgba(255,255,255,.36)
+}
+.label-swatch{
+  width:26px;height:26px;border-radius:7px;border:1px solid rgba(54,45,89,.20);padding:0;cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 2px 8px rgba(69,38,80,.10)
+}
+.label-name{font-size:13px;min-width:0;width:100%;text-transform:none}
+.label-actions{grid-column:2 / -1;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mode-btn{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:6px 7px}
+.mode-btn.toggle{color:var(--accent);border-color:rgba(106,95,193,.36);background:rgba(106,95,193,.08)}
+.mode-btn.toggle:hover{color:#fff;background:var(--accent);border-color:var(--accent);box-shadow:0 5px 14px rgba(106,95,193,.22)}
+.mode-btn.background{color:#4d5a12;border-color:rgba(150,190,40,.55);background:rgba(194,239,78,.28)}
+.mode-btn.background:hover{color:#1f1633;background:var(--lime);border-color:#a3cf2e;box-shadow:0 5px 16px rgba(194,239,78,.28)}
+.region-row{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:7px;align-items:center;padding:6px;border:1px solid rgba(54,45,89,.12);border-radius:10px;background:rgba(255,255,255,.34);font-size:12px}
+.region-chip{width:18px;height:18px;border-radius:5px;border:1px solid rgba(54,45,89,.16)}
+.form-row{display:flex;gap:7px;align-items:center}.form-row>*{min-width:0}
+.form-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.color-preview{width:44px;height:44px;border-radius:11px;border:1px solid rgba(54,45,89,.18);box-shadow:0 5px 18px rgba(69,38,80,.12);flex:0 0 auto}
+.color-editor{display:grid;grid-template-columns:54px 1fr;gap:9px;align-items:center}
+.hex-row{display:flex;gap:7px;margin-top:8px}.hex-row input{flex:1;text-transform:uppercase}
+.theme-shortcuts{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}
+.theme-shortcuts button:first-child{background:var(--lime);border-color:#a3cf2e;color:#1f1633}
+.theme-shortcuts button:last-child{background:var(--accent);border-color:var(--accent);color:#fff}
+.hint{font-size:11px;color:var(--muted);margin-top:5px;text-transform:none}
+.color-palette{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.palette-section{display:flex;flex-direction:column;gap:5px}
+.palette-title{font-size:9px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+.palette-grid{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:5px}
+.palette-swatch{aspect-ratio:1;border-radius:7px;border:1px solid rgba(54,45,89,.15);padding:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.45)}
+.palette-swatch:hover{outline:2px solid var(--accent);outline-offset:1px}
+.kbd{font-family:Monaco,ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;background:#f2eef9;border:1px solid #e0d9ee;border-radius:5px;padding:1px 4px;color:var(--accent-deep)}
+dialog{
+  border:1px solid rgba(69,38,80,.20);border-radius:16px;padding:0;width:min(480px,calc(100vw - 28px));
+  background:rgba(251,250,254,.92);backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);
+  box-shadow:0 22px 64px rgba(31,22,51,.22)
+}
+dialog::backdrop{background:rgba(31,22,51,.30);backdrop-filter:blur(3px)}
+.dialog-body{padding:17px}.dialog-body h3{margin:0 0 12px;font-size:16px;font-weight:700;text-transform:none}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(54,45,89,.14)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:200;background:rgba(31,22,51,.94);color:#fff;border-radius:10px;padding:8px 12px;font-size:12px;opacity:0;pointer-events:none;transition:.15s;box-shadow:0 12px 32px rgba(31,22,51,.22);text-transform:none}
+.toast.show{opacity:1}
+@media (max-width:980px){.layout{grid-template-columns:1fr;padding:12px}.workspace{grid-template-columns:168px minmax(0,1fr)}.sidebar{position:static;max-height:none}}
+@media (max-width:650px){
+  .topbar{padding:9px 10px;gap:6px}.topbar h1{font-size:16px;width:100%;margin:0 0 2px}.topbar .subtle{display:none}.topbar button{padding:7px 9px;font-size:11.5px}
+  .layout{padding:8px;gap:10px}.workspace{grid-template-columns:1fr;gap:10px}.board{gap:10px}.plate-card{border-radius:15px}.plate-head{padding:8px;gap:6px}
+  .plate-head .plate-name{min-width:0;max-width:none;flex:1 1 145px}.plate-head .plate-type{width:98px}.plate-head .meta{font-size:11px}.plate-head .spacer{display:none}
+  .shared-label-panel{position:static;max-height:none;padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px}.shared-label-context,.shared-label-panel .plate-legend-tools,.shared-label-panel>h3{grid-column:1 / -1}.shared-label-panel>h3{margin:0}.legend-group{margin:0}.legend-mode{margin-bottom:4px}
+  .plate-scroll{padding:18px 10px 20px;min-height:180px}.plate-scroll::before{inset:8px;border-radius:16px}.plate-shell{padding:0}.plate-shell[data-plate-type="8"] .well{border-radius:13px}.plate-shell[data-plate-type="8"]::before{right:12px;top:4px;font-size:7px}.palette-grid{grid-template-columns:repeat(8,minmax(0,1fr))}
+  .sidebar{padding:12px;border-radius:15px}input[type=text],input[type=number],select,textarea{font-size:16px}
+}
+@page{size:portrait;margin:7mm}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  html,body{width:auto!important;min-width:0!important;background:#fff!important}
+  .topbar,.sidebar,.plate-head button{display:none!important}
+  body::before,.plate-scroll::before{display:none!important}
+  .app{min-height:0}.layout{display:block!important;padding:0!important}.workspace{display:block!important}.board{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:2.5mm 3mm!important;align-items:start}
+  .shared-label-panel{display:block!important;position:static!important;max-height:none!important;overflow:visible!important;margin:0 0 3mm!important;padding:2.5mm 3mm!important;border:1px solid #d7cfe6!important;border-radius:3mm!important;background:#fff!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;break-inside:avoid}
+  .shared-label-context,.shared-label-panel .plate-legend-tools,.shared-label-panel>h3,.legend-mode{display:none!important}
+  .legend-group{display:grid!important;grid-template-columns:repeat(8,minmax(0,1fr))!important;gap:1.2mm 2mm!important;margin:0!important}
+  .legend-group.background{display:none!important}
+  .plate-legend-item{display:grid!important;grid-template-columns:4mm minmax(0,1fr)!important;gap:1mm!important;margin:0!important;align-items:center!important}
+  .legend-color{width:4mm!important;height:4mm!important;border-radius:1mm!important;box-shadow:none!important}
+  .legend-apply{border:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;font-size:6.8pt!important;line-height:1.05!important;font-weight:700!important;text-transform:none!important}
+  .plate-card{break-inside:avoid!important;page-break-inside:avoid!important;border:1px solid #d7cfe6!important;border-radius:2.6mm!important;margin:0!important;box-shadow:none!important;background:#fff!important;overflow:hidden!important}
+  .plate-card.active{border-color:#d7cfe6!important;box-shadow:none!important}
+  .plate-head{height:5mm!important;min-height:5mm!important;border-bottom:1px solid #e7e1f0!important;padding:.8mm 1.6mm!important;background:#fff!important;gap:1mm!important;flex-wrap:nowrap!important}
+  .plate-head input,.plate-head select{border:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;font-size:7pt!important;line-height:1!important;height:auto!important;text-transform:none!important}
+  .plate-head .plate-name{min-width:0!important;max-width:none!important;flex:1 1 auto!important}.plate-head .plate-type,.plate-head .meta{display:none!important}
+  .plate-body{display:block!important}.plate-scroll{overflow:hidden!important;padding:1.5mm!important;background:#fff!important;min-height:0!important}
+  .plate-fit{width:288px!important;height:192.8px!important;margin:0 auto!important}
+  .plate-shell{width:720px!important;height:482px!important;padding:0!important;transform:scale(.40)!important;transform-origin:top left!important;background:#fff!important}
+  .plate-shell::after{display:block!important;border:1.2px solid #d7cfe6!important;background:#fff!important;box-shadow:none!important}.plate-shell::before{display:block!important}
+  .well.selected{box-shadow:inset 0 0 0 2px rgba(255,255,255,.55)!important;border-color:#cabfdc!important}
+  .region-caption span{box-shadow:none!important}
+}
+
+
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <h1>Multi-Plate Planner</h1>
+    <button class="primary" id="addPlateBtn">+ Add plate</button>
+    <button id="saveBtn">Save locally</button>
+    <button id="undoBtn" title="Undo last planner action (Ctrl+Z / Command+Z)" disabled>Undo</button>
+    <button id="exportBtn">Export JSON</button>
+    <button id="importBtn">Import JSON</button>
+    <button id="printBtn">Print</button>
+    <div class="spacer"></div>
+    <span class="subtle">Drag across wells to select a rectangle. <span class="kbd">Shift</span> adds another rectangle. <span class="kbd">Ctrl/⌘ Z</span> undo.</span>
+  </div>
+
+  <div class="layout">
+    <div class="workspace">
+      <aside class="plate-legend shared-label-panel" id="sharedLabelPanel" aria-label="Shared label palette"></aside>
+      <main class="board" id="board"></main>
+    </div>
+
+    <aside class="sidebar">
+      <div class="section">
+        <h2>Active selection</h2>
+        <div class="selection-title" id="activePlateTitle">No active plate</div>
+        <div class="selection-list" id="selectionList">Select wells in a plate.</div>
+        <div class="actions" style="margin-top:8px">
+          <button id="selectAllBtn">Select all</button>
+          <button id="clearSelectionBtn">Clear selection</button>
+          <button id="clearSelectedWellLabelsBtn" class="danger" hidden>Clear well labels</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Labels</h2>
+        <div class="subtle" style="margin-bottom:8px">
+          Every item is one reusable label. The same label can be applied as both <strong>Toggle</strong> and <strong>Background</strong> without creating it twice. Click its color swatch to edit the color, or click either action to apply that label to the current selection. To remove only certain labels from selected wells, check those labels below and use <strong>Remove from wells</strong>.
+        </div>
+        <textarea id="bulkLabelInput" class="label-bulk-input" placeholder="Control&#10;TR01&#10;TR02&#10;TR03"></textarea>
+        <div class="form-row" style="margin-top:7px">
+          <button id="bulkLabelColorBtn" title="Default color for new labels"><span id="bulkLabelColorPreview" class="label-swatch" style="display:block"></span></button>
+          <button class="primary" id="addBulkLabelsBtn">Add labels</button>
+        </div>
+        <div class="label-toolbar">
+          <button id="selectAllLabelsBtn">Select all</button>
+          <button id="saveLabelEditsBtn">Save edits</button>
+          <button class="danger" id="deleteSelectedLabelsBtn">Delete labels</button>
+        </div>
+        <div class="label-list" id="labelList"></div>
+      </div>
+
+      <div class="section">
+        <h2>Background layers</h2>
+        <div class="subtle" style="margin-bottom:8px">Backgrounds use rectangular selections and are limited to two overlapping layers per well.</div>
+        <div class="region-list" id="regionList"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<dialog id="colorDialog">
+  <div class="dialog-body">
+    <h3 id="colorDialogTitle">Choose label color</h3>
+    <div class="color-editor">
+      <div class="color-preview" id="dialogColorPreview"></div>
+      <div>
+        <div class="form-grid-3">
+          <input id="rInput" type="number" min="0" max="255" aria-label="R">
+          <input id="gInput" type="number" min="0" max="255" aria-label="G">
+          <input id="bInput" type="number" min="0" max="255" aria-label="B">
+        </div>
+        <div class="hint">R &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; G &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; B</div>
+      </div>
+    </div>
+    <div class="hex-row"><input id="hexInput" type="text" placeholder="#6A5FC1" maxlength="7"></div>
+    <div class="theme-shortcuts">
+      <button id="themeYellowBtn">Lime accent</button>
+      <button id="themeBlueBtn">#6A5FC1</button>
+    </div>
+    <div class="hint">Full-saturation colors are preserved. Well text automatically switches between black and white for contrast.</div>
+    <div class="color-palette" id="colorPalette"></div>
+  </div>
+  <div class="dialog-actions">
+    <button id="cancelColorBtn">Cancel</button>
+    <button class="primary" id="confirmColorBtn">Use color</button>
+  </div>
+</dialog>
+
+<dialog id="importDialog">
+  <div class="dialog-body">
+    <h3>Import planner JSON</h3>
+    <textarea id="importText" style="min-height:220px" placeholder="Paste exported JSON here"></textarea>
+  </div>
+  <div class="dialog-actions">
+    <button id="cancelImportBtn">Cancel</button>
+    <button class="primary" id="confirmImportBtn">Import</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const PLATES = {
+    384:{rows:16,cols:24,size:30,gap:4,font:9},
+    96:{rows:8,cols:12,size:46,gap:6,font:12},
+    48:{rows:6,cols:8,size:52,gap:7,font:12},
+    24:{rows:4,cols:6,size:58,gap:8,font:13},
+    12:{rows:3,cols:4,size:64,gap:9,font:13},
+    8:{rows:2,cols:4,size:68,gap:9,font:14,wellW:94,wellH:60},
+    6:{rows:2,cols:3,size:72,gap:10,font:14}
+  };
+  const MAX_MARKERS = 4;
+  const MAX_BACKGROUND_LAYERS = 2;
+  const STORAGE_KEY = "multiPlatePlannerV3";
+  const OLD_KEY = "multiWellPlatePlannerV1";
+  const PLATE_RENDER = {width:720,height:482,left:48,top:42,right:28,bottom:26}; // 127.76 × 85.48 mm ANSI/SLAS footprint ratio
+  const PALETTE_GROUPS = [
+    {name:"Brand accents",colors:["#6A5FC1","#C2EF4E","#FFB287","#FA7FAA","#422082","#79628C","#452650","#362D59","#8B5CFF","#00A896"]},
+    {name:"Brewer · Set2",colors:["#66C2A5","#FC8D62","#8DA0CB","#E78AC3","#A6D854","#FFD92F","#E5C494","#B3B3B3"]},
+    {name:"Brewer · Dark2",colors:["#1B9E77","#D95F02","#7570B3","#E7298A","#66A61E","#E6AB02","#A6761D","#666666"]},
+    {name:"Okabe–Ito",colors:["#E69F00","#56B4E9","#009E73","#F0E442","#0072B2","#D55E00","#CC79A7","#000000"]},
+    {name:"ggsci · NPG",colors:["#E64B35","#4DBBD5","#00A087","#3C5488","#F39B7F","#8491B4","#91D1C2","#DC0000","#7E6148","#B09C85"]},
+    {name:"ggsci · JCO",colors:["#0073C2","#EFC000","#868686","#CD534C","#7AA6DC","#003C67","#8F7700","#3B3B3B","#A73030","#4A6990"]},
+    {name:"ggsci · AAAS",colors:["#3B4992","#EE0000","#008B45","#631879","#008280","#BB0021","#5F559B","#A20056","#808180","#1B1919"]}
+  ];
+
+  let state = loadState() || initialState();
+  state.plates.forEach(normalizeBackgroundRegions);
+  let activePlateId = state.plates[0]?.id || null;
+  let selected = new Map();
+  const HISTORY_LIMIT = 80;
+  let undoStack = [];
+  let restoringHistory = false;
+  let drag = null;
+  let colorTarget = null;
+  let dialogColor = "#C2EF4E";
+  let newLabelColor = "#C2EF4E";
+
+  const $ = s => document.querySelector(s);
+  const board = $("#board"), sharedLabelPanel = $("#sharedLabelPanel"), labelList = $("#labelList"), regionList = $("#regionList"),
+        activePlateTitle = $("#activePlateTitle"), selectionList = $("#selectionList"),
+        colorDialog = $("#colorDialog"), importDialog = $("#importDialog");
+
+  function uid(prefix="id"){return `${prefix}-${Math.random().toString(36).slice(2,8)}${Date.now().toString(36).slice(-5)}`}
+  function initialState(){
+    return {
+      version:3,
+      labels:[
+        {id:uid("lab"),name:"Control",color:"#ECE7F4"},
+        {id:uid("lab"),name:"TR01",color:"#C2EF4E"},
+        {id:uid("lab"),name:"TR02",color:"#6A5FC1"},
+        {id:uid("lab"),name:"TR03",color:"#FFB287"}
+      ],
+      plates:[makePlate(96,"Plate 1")]
+    };
+  }
+  function makePlate(type=96,name="Plate"){return {id:uid("plate"),type:Number(type),name,wells:{},regions:[]}}
+  function getPlate(id=activePlateId){return state.plates.find(p=>p.id===id)}
+  function getSelected(plateId=activePlateId){if(!selected.has(plateId))selected.set(plateId,new Set());return selected.get(plateId)}
+  function getWell(plate,id){if(!plate.wells[id])plate.wells[id]={markers:[]};return plate.wells[id]}
+  function rowName(i){return String.fromCharCode(65+i)}
+  function wellId(r,c){return rowName(r)+(c+1)}
+  function parseWell(id){const m=id.match(/^([A-Z])(\d+)$/);return {r:m[1].charCodeAt(0)-65,c:Number(m[2])-1}}
+  function getLabel(id){return state.labels.find(x=>x.id===id)}
+  function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+
+  function snapshotSelection(){return [...selected.entries()].map(([plateId,set])=>[plateId,[...set]])}
+  function makeHistorySnapshot(){return {state:JSON.parse(JSON.stringify(state)),activePlateId,selected:snapshotSelection()}}
+  function updateUndoButton(){const b=$("#undoBtn");if(b)b.disabled=!undoStack.length}
+  function pushHistory(){
+    if(restoringHistory)return;
+    undoStack.push(makeHistorySnapshot());
+    if(undoStack.length>HISTORY_LIMIT)undoStack.shift();
+    updateUndoButton();
+  }
+  function undoLastAction(){
+    if(!undoStack.length){toast("Nothing to undo.");return}
+    const snap=undoStack.pop();
+    restoringHistory=true;
+    state=JSON.parse(JSON.stringify(snap.state));
+    validateState(state);
+    activePlateId=state.plates.some(p=>p.id===snap.activePlateId)?snap.activePlateId:(state.plates[0]?.id||null);
+    selected=new Map((snap.selected||[]).filter(([plateId])=>state.plates.some(p=>p.id===plateId)).map(([plateId,ids])=>[plateId,new Set(ids)]));
+    renderAll();
+    restoringHistory=false;
+    updateUndoButton();
+    toast("Undone.");
+  }
+  function isTextEditingTarget(target){
+    if(!target)return false;
+    const tag=target.tagName?.toLowerCase();
+    return target.isContentEditable||tag==="input"||tag==="textarea"||tag==="select";
+  }
+
+  function renderAll(){renderBoard();renderSidebar();autoSave()}
+  function renderBoard(){
+    board.innerHTML="";
+    if(!state.plates.length){board.innerHTML='<div class="empty-state">No plates yet. Use <strong>+ Add plate</strong>.</div>';return}
+    state.plates.forEach(plate=>board.appendChild(buildPlateCard(plate)));
+    requestAnimationFrame(fitAllPlates);
+  }
+
+  function buildPlateCard(plate){
+    const card=document.createElement("section");
+    card.className="plate-card"+(plate.id===activePlateId?" active":"");card.dataset.plateId=plate.id;
+    card.addEventListener("pointerdown",()=>setActivePlate(plate.id,false));
+
+    const head=document.createElement("div");head.className="plate-head";
+    head.innerHTML=`
+      <input class="plate-name" type="text" value="${escapeHtml(plate.name)}" aria-label="Plate name">
+      <select class="plate-type" aria-label="Plate type">${Object.keys(PLATES).sort((a,b)=>b-a).map(t=>`<option value="${t}" ${Number(t)===Number(plate.type)?"selected":""}>${t}-well</option>`).join("")}</select>
+      <span class="meta">${PLATES[plate.type].rows} × ${PLATES[plate.type].cols}</span>
+      <span class="spacer"></span>
+      <button class="small duplicate">Duplicate</button>
+      <button class="small clear">Clear</button>
+      <button class="small danger remove">Delete</button>`;
+    card.appendChild(head);
+
+    head.querySelector(".plate-name").addEventListener("input",e=>{plate.name=e.target.value;if(plate.id===activePlateId)renderSidebar();autoSave()});
+    head.querySelector(".plate-type").addEventListener("change",e=>{
+      const next=Number(e.target.value);if(next===plate.type)return;
+      if((Object.keys(plate.wells).length||plate.regions.length)&&!confirm("Changing plate type clears wells and backgrounds on this plate. Continue?")){e.target.value=plate.type;return}
+      pushHistory();plate.type=next;plate.wells={};plate.regions=[];getSelected(plate.id).clear();renderAll();
+    });
+    head.querySelector(".duplicate").onclick=e=>{e.stopPropagation();duplicatePlate(plate)};
+    head.querySelector(".clear").onclick=e=>{e.stopPropagation();if(!confirm(`Clear annotations from "${plate.name}"?`))return;pushHistory();plate.wells={};plate.regions=[];getSelected(plate.id).clear();renderAll()};
+    head.querySelector(".remove").onclick=e=>{e.stopPropagation();if(!confirm(`Delete "${plate.name}"?`))return;pushHistory();state.plates=state.plates.filter(p=>p.id!==plate.id);selected.delete(plate.id);if(activePlateId===plate.id)activePlateId=state.plates[0]?.id||null;renderAll()};
+
+    const body=document.createElement("div");body.className="plate-body";
+    const scroll=document.createElement("div");scroll.className="plate-scroll";
+    const dragBox=document.createElement("div");dragBox.className="drag-box";
+    const fit=document.createElement("div");fit.className="plate-fit";
+    const shell=document.createElement("div");shell.className="plate-shell";
+    fit.appendChild(shell);scroll.appendChild(dragBox);scroll.appendChild(fit);
+    body.appendChild(scroll);card.appendChild(body);
+    renderPlateShell(shell,plate);
+    return card;
+  }
+
+  function renderSharedLabelPanel(){
+    const legend=sharedLabelPanel;if(!legend)return;
+    const plate=getPlate(),selCount=plate?getSelected(plate.id).size:0;
+    legend.innerHTML=`<div class="shared-label-context"><span class="eyebrow">Active plate</span><strong>${plate?escapeHtml(plate.name):"No active plate"}</strong><span class="count">${plate?`${selCount} well${selCount===1?"":"s"} selected`:"Select or add a plate"}</span></div><div class="plate-legend-tools"><button class="remove-checked-from-wells">Remove from wells</button><button class="clear-selected-labels">Clear well labels</button></div><h3>Labels</h3>`;
+    const removeBtn=legend.querySelector(".remove-checked-from-wells"),clearBtn=legend.querySelector(".clear-selected-labels");
+    removeBtn.disabled=!plate||!selCount;clearBtn.disabled=!plate||!selectionHasAnyLabels(plate);
+    removeBtn.onclick=()=>{const ids=getCheckedLabelIds();if(!ids.length){toast("Check one or more labels in the right panel first.");return}if(removeLabelsFromSelectedWells(ids))renderAll()};
+    clearBtn.onclick=()=>clearSelectedWellLabels();
+    for(const mode of ["toggle","background"]){
+      const group=document.createElement("div");group.className="legend-group "+mode;
+      group.innerHTML=`<div class="legend-mode">${mode}</div>`;
+      if(!state.labels.length)group.innerHTML+='<div class="legend-empty">No labels</div>';
+      for(const lab of state.labels){
+        const row=document.createElement("div");row.className="plate-legend-item";
+        row.innerHTML=`<button class="legend-color" style="background:${lab.color}" title="Edit ${escapeHtml(lab.name)} color"></button><button class="legend-apply" title="Apply ${escapeHtml(lab.name)} as ${mode}">${escapeHtml(lab.name)}</button>`;
+        row.querySelector(".legend-color").onclick=()=>openColorEditor({type:"label",id:lab.id},lab.color,`Color — ${lab.name}`);
+        row.querySelector(".legend-apply").onclick=()=>applyLabelAction(lab.id,mode);
+        group.appendChild(row);
+      }
+      legend.appendChild(group);
+    }
+  }
+
+  function renderPlateShell(shell,plate){
+    const cfg=PLATES[plate.type],sel=getSelected(plate.id);
+    const usableW=PLATE_RENDER.width-PLATE_RENDER.left-PLATE_RENDER.right;
+    const usableH=PLATE_RENDER.height-PLATE_RENDER.top-PLATE_RENDER.bottom;
+    const pitchX=usableW/cfg.cols,pitchY=usableH/cfg.rows;
+    const scaleByType={384:.72,96:.74,48:.76,24:.78,12:.80,8:.78,6:.82};
+    let wellW,wellH;
+    if(Number(plate.type)===8){wellW=pitchX*.76;wellH=pitchY*.68}else{const d=Math.min(pitchX,pitchY)*(scaleByType[plate.type]||.76);wellW=wellH=d}
+    const font=Math.max(7,Math.min(Number(plate.type)===384?9:20,Math.min(wellW,wellH)*.26));
+    shell.dataset.plateType=plate.type;
+    shell.style.width=PLATE_RENDER.width+"px";shell.style.height=PLATE_RENDER.height+"px";
+    shell.style.gridTemplateColumns=`${PLATE_RENDER.left}px repeat(${cfg.cols}, ${pitchX}px)`;
+    shell.style.gridTemplateRows=`${PLATE_RENDER.top}px repeat(${cfg.rows}, ${pitchY}px)`;
+    shell.style.gap="0px";
+
+    const corner=document.createElement("div");shell.appendChild(corner);
+    for(let c=0;c<cfg.cols;c++){const h=document.createElement("div");h.className="col-header";h.textContent=c+1;shell.appendChild(h)}
+
+    const priorRegions=[];
+    for(const region of plate.regions){
+      const overlaps=priorRegions.some(r=>rectanglesOverlap(r,region));
+      const el=document.createElement("div");
+      el.className="region"+(overlaps?" layer-2":"");
+      el.style.gridColumn=`${region.c1+2} / ${region.c2+3}`;el.style.gridRow=`${region.r1+2} / ${region.r2+3}`;
+      el.style.background=withAlpha(region.color,overlaps?.20:.27);
+      shell.appendChild(el);
+      if(region.name){
+        const cap=document.createElement("div");cap.className="region-caption"+(overlaps?" layer-2":"");
+        cap.style.gridColumn=`${region.c1+2} / ${region.c2+3}`;cap.style.gridRow=`${region.r1+2} / ${region.r2+3}`;
+        cap.innerHTML=`<span style="background:${withAlpha(region.color,.90)};color:${contrastText(region.color)}">${escapeHtml(region.name)}</span>`;
+        shell.appendChild(cap);
+      }
+      priorRegions.push(region);
+    }
+
+    for(let r=0;r<cfg.rows;r++){
+      const rh=document.createElement("div");rh.className="row-header";rh.textContent=rowName(r);rh.style.gridColumn="1";rh.style.gridRow=String(r+2);shell.appendChild(rh);
+      for(let c=0;c<cfg.cols;c++){
+        const id=wellId(r,c),data=getWell(plate,id),w=document.createElement("div");
+        w.className="well"+(sel.has(id)?" selected":"");w.dataset.plateId=plate.id;w.dataset.r=r;w.dataset.c=c;w.dataset.id=id;
+        w.style.gridColumn=String(c+2);w.style.gridRow=String(r+2);w.style.width=wellW+"px";w.style.height=wellH+"px";w.style.background=wellBackground(data.markers);w.title=id;
+        w.innerHTML=`<span class="well-id" style="font-size:${font}px;color:${wellTextColor(data.markers)}">${id}</span>`;
+        w.addEventListener("pointerdown",startWellDrag);w.addEventListener("dragstart",e=>e.preventDefault());shell.appendChild(w);
+      }
+    }
+  }
+
+  function fitAllPlates(){document.querySelectorAll(".plate-card").forEach(fitPlateCard)}
+  function fitPlateCard(card){
+    const scroll=card.querySelector(".plate-scroll"),fit=card.querySelector(".plate-fit"),shell=card.querySelector(".plate-shell");if(!scroll||!fit||!shell)return;
+    shell.style.transform="none";fit.style.width="auto";fit.style.height="auto";
+    const naturalW=PLATE_RENDER.width,naturalH=PLATE_RENDER.height;
+    const cs=getComputedStyle(scroll),available=Math.max(1,scroll.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight));
+    const mobile=window.matchMedia("(max-width:650px)").matches;
+    const minScale=mobile?.56:.48;
+    const maxScale=mobile?.78:.70;
+    const scale=Math.min(maxScale,Math.max(minScale,available/naturalW));
+    shell.style.transform=`scale(${scale})`;fit.style.width=(naturalW*scale)+"px";fit.style.height=(naturalH*scale)+"px";
+  }
+
+  function startWellDrag(e){
+    if(!e.isPrimary||(e.pointerType==="mouse"&&e.button!==0))return;
+    e.preventDefault();e.stopPropagation();
+    const plateId=e.currentTarget.dataset.plateId,r=Number(e.currentTarget.dataset.r),c=Number(e.currentTarget.dataset.c);
+    setActivePlate(plateId,false);const base=e.shiftKey?new Set(getSelected(plateId)):new Set();drag={plateId,r0:r,c0:c,lastR:r,lastC:c,base,pointerId:e.pointerId};applyDragRectangle(r,c);
+  }
+  // Touch never fires mouseenter on the elements a finger slides over, so the well
+  // under the pointer is resolved by hit-testing its coordinates instead.
+  function moveWellDrag(e){
+    if(!drag||e.pointerId!==drag.pointerId)return;
+    e.preventDefault();
+    const t=document.elementFromPoint(e.clientX,e.clientY);if(!t)return;
+    const w=t.closest?.(".well");if(!w||w.dataset.plateId!==drag.plateId)return;
+    const r=Number(w.dataset.r),c=Number(w.dataset.c);
+    if(r===drag.lastR&&c===drag.lastC)return;
+    drag.lastR=r;drag.lastC=c;applyDragRectangle(r,c);
+  }
+  function updateVisibleDragBox(plateId,r1,c1,r2,c2){
+    const card=document.querySelector(`.plate-card[data-plate-id="${plateId}"]`);if(!card)return;
+    const scroll=card.querySelector(".plate-scroll"),shell=card.querySelector(".plate-shell"),box=card.querySelector(".drag-box"),wells=[...shell.querySelectorAll(".well")];
+    const a=wells.find(w=>Number(w.dataset.r)===Math.min(r1,r2)&&Number(w.dataset.c)===Math.min(c1,c2)),b=wells.find(w=>Number(w.dataset.r)===Math.max(r1,r2)&&Number(w.dataset.c)===Math.max(c1,c2));if(!a||!b)return;
+    const sr=scroll.getBoundingClientRect(),ar=a.getBoundingClientRect(),br=b.getBoundingClientRect();
+    const left=ar.left-sr.left+scroll.scrollLeft-3,top=ar.top-sr.top+scroll.scrollTop-3,right=br.right-sr.left+scroll.scrollLeft+3,bottom=br.bottom-sr.top+scroll.scrollTop+3;
+    box.style.display="block";box.style.left=left+"px";box.style.top=top+"px";box.style.width=(right-left)+"px";box.style.height=(bottom-top)+"px";
+  }
+  function hideAllDragBoxes(){document.querySelectorAll(".drag-box").forEach(b=>b.style.display="none")}
+  function applyDragRectangle(r1,c1){
+    if(!drag)return;const plate=getPlate(drag.plateId),cfg=PLATES[plate.type],next=new Set(drag.base);
+    const ra=Math.max(0,Math.min(drag.r0,r1)),rb=Math.min(cfg.rows-1,Math.max(drag.r0,r1)),ca=Math.max(0,Math.min(drag.c0,c1)),cb=Math.min(cfg.cols-1,Math.max(drag.c0,c1));
+    for(let r=ra;r<=rb;r++)for(let c=ca;c<=cb;c++)next.add(wellId(r,c));selected.set(drag.plateId,next);refreshPlateOnly(drag.plateId);updateVisibleDragBox(drag.plateId,drag.r0,drag.c0,r1,c1);renderSidebar();
+  }
+  window.addEventListener("pointermove",moveWellDrag,{passive:false});
+  function endWellDrag(e){if(drag&&e.pointerId!==undefined&&e.pointerId!==drag.pointerId)return;drag=null;hideAllDragBoxes()}
+  window.addEventListener("pointerup",endWellDrag);
+  window.addEventListener("pointercancel",endWellDrag);
+
+  function refreshPlateOnly(plateId){
+    const card=document.querySelector(`.plate-card[data-plate-id="${plateId}"]`);if(!card)return;
+    const shell=card.querySelector(".plate-shell"),plate=getPlate(plateId);shell.innerHTML="";renderPlateShell(shell,plate);fitPlateCard(card);
+  }
+  function setActivePlate(id,rerender=true){if(activePlateId===id){if(rerender)renderSidebar();return}activePlateId=id;document.querySelectorAll(".plate-card").forEach(x=>x.classList.toggle("active",x.dataset.plateId===id));renderSidebar()}
+  function duplicatePlate(plate){
+    pushHistory();
+    const clone=JSON.parse(JSON.stringify(plate));clone.id=uid("plate");clone.name=plate.name+" copy";state.plates.splice(state.plates.indexOf(plate)+1,0,clone);activePlateId=clone.id;renderAll();
+  }
+
+  function wellBackground(markers){
+    const colors=markers.map(id=>getLabel(id)?.color).filter(Boolean);if(!colors.length)return "rgba(255,255,255,.82)";if(colors.length===1)return colors[0];
+    const n=colors.length,stops=[];colors.forEach((c,i)=>stops.push(`${c} ${(i/n)*100}% ${((i+1)/n)*100}%`));return `conic-gradient(${stops.join(",")})`;
+  }
+  function wellTextColor(markers){
+    const colors=markers.map(id=>getLabel(id)?.color).filter(Boolean);if(!colors.length)return "#11131F";
+    const avg=colors.map(hexToRgb).reduce((a,c)=>({r:a.r+c.r,g:a.g+c.g,b:a.b+c.b}),{r:0,g:0,b:0});avg.r/=colors.length;avg.g/=colors.length;avg.b/=colors.length;return luminance(avg.r,avg.g,avg.b)<.43?"#FFFFFF":"#0E1120";
+  }
+  function contrastText(hex){const {r,g,b}=hexToRgb(normalizeHex(hex));return luminance(r,g,b)<.43?"#FFFFFF":"#10131F"}
+  function luminance(r,g,b){const conv=v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)};return .2126*conv(r)+.7152*conv(g)+.0722*conv(b)}
+
+  function selectionHasAnyLabels(plate=getPlate()){
+    if(!plate)return false;const sel=getSelected(plate.id);if(!sel.size)return false;
+    if([...sel].some(id=>(getWell(plate,id).markers||[]).length))return true;
+    for(const reg of plate.regions){for(const id of sel){const {r,c}=parseWell(id);if(r>=reg.r1&&r<=reg.r2&&c>=reg.c1&&c<=reg.c2)return true}}
+    return false;
+  }
+  function getCheckedLabelIds(){return [...document.querySelectorAll(".label-row[data-label-id]")].filter(r=>r.querySelector(".label-check")?.checked).map(r=>r.dataset.labelId)}
+  function clearSelectedWellLabels(){
+    const plate=getPlate();if(!plate||!getSelected(plate.id).size){toast("Select wells first.");return}
+    const ids=state.labels.map(l=>l.id);if(removeLabelsFromSelectedWells(ids))renderAll();
+  }
+
+  function renderSidebar(){
+    renderSharedLabelPanel();
+    const plate=getPlate();if(!plate){activePlateTitle.textContent="No active plate";selectionList.textContent="Select or add a plate.";labelList.innerHTML="";regionList.innerHTML="";$("#clearSelectedWellLabelsBtn").hidden=true;return}
+    const sel=[...getSelected()].sort(wellSort);activePlateTitle.textContent=`${plate.name} — ${sel.length} selected`;selectionList.textContent=sel.length?sel.join(", "):"Select wells by dragging from one well to another.";
+    $("#clearSelectedWellLabelsBtn").hidden=!selectionHasAnyLabels(plate);renderLabels();renderRegionControls();
+  }
+  function renderLabels(){
+    labelList.innerHTML="";
+    for(const lab of state.labels){
+      const row=document.createElement("div");row.className="label-row";row.dataset.labelId=lab.id;
+      row.innerHTML=`
+        <input class="label-check" type="checkbox" aria-label="Select ${escapeHtml(lab.name)}">
+        <button class="label-swatch" style="background:${lab.color}" title="Click to change color"></button>
+        <input class="label-name" type="text" value="${escapeHtml(lab.name)}" aria-label="Label name">
+        <div class="label-actions">
+          <button class="mode-btn toggle" title="Apply this label as a toggle marker">Toggle</button>
+          <button class="mode-btn background" title="Apply this label as a background layer">Background</button>
+        </div>`;
+      row.querySelector(".label-swatch").onclick=()=>openColorEditor({type:"label",id:lab.id},lab.color,`Color — ${lab.name}`);
+      row.querySelector(".mode-btn.toggle").onclick=()=>applyLabelAction(lab.id,"toggle");
+      row.querySelector(".mode-btn.background").onclick=()=>applyLabelAction(lab.id,"background");
+      labelList.appendChild(row);
+    }
+    if(!state.labels.length)labelList.innerHTML='<div class="subtle">No labels. Add them above.</div>';
+  }
+  function applyLabelAction(labelId,mode){
+    const lab=getLabel(labelId);if(!lab)return;
+    const changed=mode==="toggle"?toggleLabelOnSelection(labelId):addBackgroundLabel(labelId);
+    if(changed){renderSidebar();renderBoard();autoSave()}
+  }
+  function toggleLabelOnSelection(labelId){
+    const plate=getPlate(),sel=getSelected();if(!plate||!sel.size){toast("Select wells first.");return false}
+    const targets=[...sel].filter(id=>!getWell(plate,id).markers.includes(labelId));
+    if(!targets.length){toast("That toggle label is already assigned to all selected wells.");return false}
+    pushHistory();
+    let full=0,changed=0;
+    for(const id of targets){
+      const w=getWell(plate,id);
+      // Markers are a set by label ID: assigning the same toggle again merges into one label.
+      w.markers=[...new Set(w.markers||[])];
+      if(w.markers.length<MAX_MARKERS){w.markers.push(labelId);changed++}else full++;
+    }
+    if(!changed){undoStack.pop();updateUndoButton();toast(`${full} well(s) already have ${MAX_MARKERS} toggle colors.`);return false}
+    toast(full?`Toggle label added; ${full} well(s) already have ${MAX_MARKERS} toggle colors.`:"Toggle label added.");
+    return true;
+  }
+  function addBackgroundLabel(labelId){
+    const plate=getPlate();if(!plate)return false;
+    const b=selectionBounds(plate);
+    if(!b){toast("Select a rectangular group of wells first.");return false}
+    if(!isRectangularSelection(plate,b)){toast("Backgrounds require one rectangular selection.");return false}
+    const lab=getLabel(labelId);if(!lab)return false;
+
+    const sameLabelRegions=plate.regions.filter(r=>r.labelId===labelId);
+    const covered=new Set();
+    for(const reg of sameLabelRegions)for(let r=reg.r1;r<=reg.r2;r++)for(let c=reg.c1;c<=reg.c2;c++)covered.add(`${r}:${c}`);
+    const requested=[];
+    for(let r=b.r1;r<=b.r2;r++)for(let c=b.c1;c<=b.c2;c++)requested.push({r,c,key:`${r}:${c}`});
+    const additions=requested.filter(x=>!covered.has(x.key));
+    if(!additions.length){toast("That background label is already assigned to all selected wells.");return false}
+
+    // The same background label counts as one layer even when it was created by multiple assignments.
+    for(const {r,c} of additions){
+      const otherLayerCount=new Set(plate.regions.filter(x=>x.labelId!==labelId&&r>=x.r1&&r<=x.r2&&c>=x.c1&&c<=x.c2).map(x=>x.labelId||x.id)).size;
+      if(otherLayerCount>=MAX_BACKGROUND_LAYERS){toast("Background limit reached: maximum two distinct background labels per well.");return false}
+    }
+
+    pushHistory();
+    additions.forEach(x=>covered.add(x.key));
+    const cells=[...covered].map(key=>{const [r,c]=key.split(":").map(Number);return {r,c}});
+    const mergedRects=cellsToRectangles(cells);
+    const keep=plate.regions.filter(r=>r.labelId!==labelId);
+    mergedRects.forEach((rect,i)=>keep.push({id:i===0&&sameLabelRegions[0]?sameLabelRegions[0].id:uid("reg"),...rect,name:lab.name,color:lab.color,labelId:lab.id}));
+    plate.regions=keep;
+    toast(sameLabelRegions.length?"Background merged with the existing label.":"Background added.");
+    return true;
+  }
+  function normalizeBackgroundRegions(plate){
+    const passthrough=[],byLabel=new Map();
+    for(const reg of plate.regions||[]){
+      if(!reg.labelId){passthrough.push(reg);continue}
+      if(!byLabel.has(reg.labelId))byLabel.set(reg.labelId,{template:reg,cells:new Set()});
+      const bucket=byLabel.get(reg.labelId);
+      for(let r=reg.r1;r<=reg.r2;r++)for(let c=reg.c1;c<=reg.c2;c++)bucket.cells.add(`${r}:${c}`);
+    }
+    const rebuilt=[...passthrough];
+    for(const [labelId,{template,cells}] of byLabel){
+      const lab=state?.labels?.find?.(x=>x.id===labelId);
+      const coords=[...cells].map(key=>{const [r,c]=key.split(":").map(Number);return {r,c}});
+      cellsToRectangles(coords).forEach((rect,i)=>rebuilt.push({...template,...rect,id:i===0?template.id:uid("reg"),name:lab?.name||template.name,color:lab?.color||template.color,labelId}));
+    }
+    plate.regions=rebuilt;
+  }
+  function backgroundCountAt(plate,r,c){return new Set(plate.regions.filter(x=>r>=x.r1&&r<=x.r2&&c>=x.c1&&c<=x.c2).map(x=>x.labelId||x.id)).size}
+  function sameBounds(a,b){return a.r1===b.r1&&a.r2===b.r2&&a.c1===b.c1&&a.c2===b.c2}
+  function rectanglesOverlap(a,b){return !(a.r2<b.r1||b.r2<a.r1||a.c2<b.c1||b.c2<a.c1)}
+
+  // Convert an arbitrary set of remaining cells into non-overlapping rectangles.
+  // This lets a background label be removed from only the selected wells while
+  // preserving the same background on every unselected well.
+  function cellsToRectangles(cells){
+    if(!cells.length)return [];
+    const byRow=new Map();
+    for(const {r,c} of cells){if(!byRow.has(r))byRow.set(r,[]);byRow.get(r).push(c)}
+    const rows=[...byRow.keys()].sort((a,b)=>a-b),finished=[],active=new Map();
+    let previousRow=null;
+    for(const r of rows){
+      if(previousRow!==null&&r!==previousRow+1){finished.push(...active.values());active.clear()}
+      const cols=[...new Set(byRow.get(r))].sort((a,b)=>a-b),runs=[];
+      for(const c of cols){
+        const last=runs[runs.length-1];
+        if(last&&c===last.c2+1)last.c2=c;else runs.push({c1:c,c2:c});
+      }
+      const next=new Map();
+      for(const run of runs){
+        const key=`${run.c1}:${run.c2}`,prev=active.get(key);
+        if(prev){prev.r2=r;next.set(key,prev)}else next.set(key,{r1:r,r2:r,c1:run.c1,c2:run.c2});
+      }
+      for(const [key,rect] of active)if(!next.has(key))finished.push(rect);
+      active.clear();for(const [key,rect] of next)active.set(key,rect);
+      previousRow=r;
+    }
+    finished.push(...active.values());
+    return finished;
+  }
+
+  function removeLabelsFromSelectedWells(labelIds){
+    const plate=getPlate(),sel=getSelected();
+    if(!plate||!sel.size){toast("Select wells first.");return false}
+    const idSet=new Set(labelIds);
+    const selectedCells=new Set([...sel].map(id=>{const {r,c}=parseWell(id);return `${r}:${c}`}));
+    const hasToggle=[...sel].some(id=>getWell(plate,id).markers.some(x=>idSet.has(x)));
+    const hasBackground=plate.regions.some(reg=>idSet.has(reg.labelId)&&[...selectedCells].some(key=>{const [r,c]=key.split(":").map(Number);return r>=reg.r1&&r<=reg.r2&&c>=reg.c1&&c<=reg.c2}));
+    if(!hasToggle&&!hasBackground){toast("Those labels are not applied to the selected wells.");return false}
+    pushHistory();
+    let toggleRemovals=0,backgroundCellRemovals=0;
+
+    for(const id of sel){
+      const w=getWell(plate,id),before=w.markers.length;
+      w.markers=w.markers.filter(x=>!idSet.has(x));
+      toggleRemovals+=before-w.markers.length;
+    }
+
+    const rebuilt=[];
+    for(const reg of plate.regions){
+      if(!idSet.has(reg.labelId)){rebuilt.push(reg);continue}
+      const remaining=[];let removedHere=0;
+      for(let r=reg.r1;r<=reg.r2;r++)for(let c=reg.c1;c<=reg.c2;c++){
+        if(selectedCells.has(`${r}:${c}`))removedHere++;else remaining.push({r,c});
+      }
+      if(!removedHere){rebuilt.push(reg);continue}
+      backgroundCellRemovals+=removedHere;
+      const pieces=cellsToRectangles(remaining);
+      pieces.forEach((rect,i)=>rebuilt.push({...reg,...rect,id:i===0?reg.id:uid("reg")}));
+    }
+    plate.regions=rebuilt;
+
+    const total=toggleRemovals+backgroundCellRemovals;
+    if(!total){toast("Those labels are not applied to the selected wells.");return false}
+    const parts=[];
+    if(toggleRemovals)parts.push(`${toggleRemovals} toggle assignment${toggleRemovals===1?"":"s"}`);
+    if(backgroundCellRemovals)parts.push(`${backgroundCellRemovals} background well${backgroundCellRemovals===1?"":"s"}`);
+    toast(`Removed ${parts.join(" and ")} from the selection.`);
+    return true;
+  }
+
+  function renderRegionControls(){
+    const plate=getPlate();regionList.innerHTML="";
+    for(const reg of plate.regions){
+      const row=document.createElement("div");row.className="region-row";const range=`${wellId(reg.r1,reg.c1)}–${wellId(reg.r2,reg.c2)}`;
+      row.innerHTML=`<span class="region-chip" style="background:${reg.color}"></span><span title="${escapeHtml(reg.name)}">${escapeHtml(reg.name||"Background")} · ${range}</span><button class="small danger">×</button>`;
+      row.querySelector("button").onclick=()=>{pushHistory();plate.regions=plate.regions.filter(x=>x.id!==reg.id);refreshPlateOnly(plate.id);renderSidebar();autoSave()};regionList.appendChild(row);
+    }
+    if(!plate.regions.length)regionList.innerHTML='<div class="subtle">No background layers on this plate.</div>';
+  }
+  function selectionBounds(plate){const ids=[...getSelected(plate.id)];if(!ids.length)return null;const pts=ids.map(parseWell);return {r1:Math.min(...pts.map(x=>x.r)),r2:Math.max(...pts.map(x=>x.r)),c1:Math.min(...pts.map(x=>x.c)),c2:Math.max(...pts.map(x=>x.c))}}
+  function isRectangularSelection(plate,b){const expected=(b.r2-b.r1+1)*(b.c2-b.c1+1),sel=getSelected(plate.id);if(sel.size!==expected)return false;for(let r=b.r1;r<=b.r2;r++)for(let c=b.c1;c<=b.c2;c++)if(!sel.has(wellId(r,c)))return false;return true}
+
+  $("#selectAllBtn").onclick=()=>{const p=getPlate();if(!p)return;const cfg=PLATES[p.type],s=getSelected();s.clear();for(let r=0;r<cfg.rows;r++)for(let c=0;c<cfg.cols;c++)s.add(wellId(r,c));refreshPlateOnly(p.id);renderSidebar()};
+  $("#clearSelectionBtn").onclick=()=>{const p=getPlate();if(!p)return;getSelected().clear();refreshPlateOnly(p.id);renderSidebar()};
+  $("#clearSelectedWellLabelsBtn").onclick=()=>clearSelectedWellLabels();
+  $("#addPlateBtn").onclick=()=>{pushHistory();const n=state.plates.length+1,p=makePlate(96,`Plate ${n}`);state.plates.push(p);activePlateId=p.id;renderAll()};
+
+  $("#bulkLabelColorPreview").style.background=newLabelColor;
+  $("#bulkLabelColorBtn").onclick=()=>openColorEditor({type:"newLabel"},newLabelColor,"New label color");
+  $("#addBulkLabelsBtn").onclick=()=>{
+    const names=$("#bulkLabelInput").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);if(!names.length){toast("Enter one or more labels, one per line.");return}
+    const existing=new Set(state.labels.map(l=>l.name.toLowerCase())),pending=[];
+    for(const name of names){if(existing.has(name.toLowerCase()))continue;pending.push({id:uid("lab"),name,color:newLabelColor});existing.add(name.toLowerCase())}
+    if(!pending.length){toast("No new labels to add.");return}
+    pushHistory();state.labels.push(...pending);
+    $("#bulkLabelInput").value="";renderAll();toast(`${pending.length} label(s) added.`);
+  };
+  $("#selectAllLabelsBtn").onclick=()=>{const checks=[...document.querySelectorAll(".label-check")],should=checks.some(c=>!c.checked);checks.forEach(c=>c.checked=should)};
+  $("#saveLabelEditsBtn").onclick=()=>{
+    const rows=[...document.querySelectorAll(".label-row[data-label-id]")],updates=[];
+    for(const row of rows){const lab=getLabel(row.dataset.labelId);if(!lab)continue;const next=row.querySelector(".label-name").value.trim();if(next&&next!==lab.name)updates.push([lab,next])}
+    if(!updates.length){toast("No label changes.");return}
+    pushHistory();
+    for(const [lab,next] of updates){lab.name=next;for(const p of state.plates)for(const reg of p.regions)if(reg.labelId===lab.id)reg.name=next}
+    renderAll();toast(`${updates.length} label(s) updated.`);
+  };
+  $("#deleteSelectedLabelsBtn").onclick=()=>{
+    const ids=[...document.querySelectorAll(".label-row[data-label-id]")].filter(r=>r.querySelector(".label-check").checked).map(r=>r.dataset.labelId);if(!ids.length){toast("Select labels to delete.");return}
+    if(!confirm(`Delete ${ids.length} selected label(s)? They will also be removed from all wells and backgrounds.`))return;
+    pushHistory();
+    const idSet=new Set(ids);state.labels=state.labels.filter(l=>!idSet.has(l.id));for(const p of state.plates){for(const w of Object.values(p.wells))w.markers=(w.markers||[]).filter(x=>!idSet.has(x));p.regions=(p.regions||[]).filter(r=>!idSet.has(r.labelId))}renderAll();toast(`${ids.length} label(s) deleted.`);
+  };
+
+  function openColorEditor(target,color,title){colorTarget=target;dialogColor=normalizeHex(color);$("#colorDialogTitle").textContent=title||"Choose label color";syncColorInputs(dialogColor);colorDialog.showModal()}
+  function syncColorInputs(hex){dialogColor=normalizeHex(hex);const {r,g,b}=hexToRgb(dialogColor);$("#rInput").value=r;$("#gInput").value=g;$("#bInput").value=b;$("#hexInput").value=dialogColor;$("#dialogColorPreview").style.background=dialogColor}
+  function readRgbInputs(){const clamp=n=>Math.max(0,Math.min(255,Number(n)||0));return rgbToHex(clamp($("#rInput").value),clamp($("#gInput").value),clamp($("#bInput").value))}
+  ["#rInput","#gInput","#bInput"].forEach(sel=>$(sel).addEventListener("input",()=>syncColorInputs(readRgbInputs())));
+  $("#hexInput").addEventListener("change",()=>{const v=$("#hexInput").value.trim();if(/^#[0-9a-fA-F]{6}$/.test(v))syncColorInputs(v);else $("#hexInput").value=dialogColor});
+  $("#themeYellowBtn").onclick=()=>syncColorInputs("#C2EF4E");$("#themeBlueBtn").onclick=()=>syncColorInputs("#6A5FC1");$("#cancelColorBtn").onclick=()=>colorDialog.close();
+  $("#confirmColorBtn").onclick=()=>{
+    const color=normalizeHex($("#hexInput").value);
+    if(colorTarget?.type==="newLabel"){newLabelColor=color;$("#bulkLabelColorPreview").style.background=color}
+    else if(colorTarget?.type==="label"){
+      const lab=getLabel(colorTarget.id);if(lab&&lab.color!==color){pushHistory();const old=lab.color;lab.color=color;for(const p of state.plates)for(const reg of p.regions)if(reg.labelId===lab.id&&reg.color===old)reg.color=color;renderAll()}
+    }
+    colorDialog.close();autoSave();
+  };
+  function buildColorPalette(){
+    const box=$("#colorPalette");box.innerHTML="";
+    PALETTE_GROUPS.forEach(group=>{
+      const section=document.createElement("div");section.className="palette-section";
+      section.innerHTML=`<div class="palette-title">${escapeHtml(group.name)}</div><div class="palette-grid"></div>`;
+      const grid=section.querySelector(".palette-grid");
+      group.colors.forEach(c=>{const b=document.createElement("button");b.className="palette-swatch";b.style.background=c;b.title=`${group.name} · ${c}`;b.onclick=()=>syncColorInputs(c);grid.appendChild(b)});
+      box.appendChild(section);
+    });
+  }
+  function normalizeHex(hex){return /^#[0-9a-fA-F]{6}$/.test(String(hex||""))?String(hex).toUpperCase():"#6A5FC1"}
+  function hexToRgb(hex){hex=normalizeHex(hex);return {r:parseInt(hex.slice(1,3),16),g:parseInt(hex.slice(3,5),16),b:parseInt(hex.slice(5,7),16)}}
+  function rgbToHex(r,g,b){return "#"+[r,g,b].map(x=>Math.round(x).toString(16).padStart(2,"0")).join("").toUpperCase()}
+  function withAlpha(hex,a){const {r,g,b}=hexToRgb(hex);return `rgba(${r},${g},${b},${a})`}
+  function wellSort(a,b){const x=parseWell(a),y=parseWell(b);return x.r-y.r||x.c-y.c}
+
+  $("#saveBtn").onclick=()=>{saveState();toast("Saved in this browser.")};$("#printBtn").onclick=()=>window.print();
+  $("#exportBtn").onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="multi_plate_planner.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+  $("#importBtn").onclick=()=>{$("#importText").value="";importDialog.showModal()};$("#cancelImportBtn").onclick=()=>importDialog.close();
+  $("#confirmImportBtn").onclick=()=>{try{const obj=JSON.parse($("#importText").value);validateState(obj);pushHistory();state=obj;selected.clear();activePlateId=state.plates[0]?.id||null;saveState();renderAll();importDialog.close();toast("Imported.")}catch(err){alert("Could not import: "+err.message)}};
+
+  function validateState(obj){
+    if(!obj||typeof obj!=="object"||!Array.isArray(obj.plates)||!Array.isArray(obj.labels))throw new Error("Invalid planner file.");
+    obj.plates.forEach(p=>{if(!PLATES[p.type])throw new Error(`Unsupported plate type: ${p.type}`);p.wells=p.wells||{};for(const w of Object.values(p.wells))w.markers=[...new Set(w.markers||[])];p.regions=p.regions||[]});
+    obj.labels.forEach(l=>{l.color=normalizeHex(l.color);delete l.mode});
+  }
+  function saveState(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}function autoSave(){saveState()}
+  function loadState(){
+    try{
+      const v3=JSON.parse(localStorage.getItem(STORAGE_KEY));if(v3){validateState(v3);return v3}
+      const old=JSON.parse(localStorage.getItem(OLD_KEY));if(old){const p=makePlate(old.plateType||96,old.plateName||"Imported plate");p.wells=old.plates?.[String(old.plateType)]?.wells||{};const obj={version:3,labels:(old.labels||[]).map(l=>({...l,color:normalizeHex(l.color)})),plates:[p]};validateState(obj);return obj}
+    }catch(e){}
+    return null;
+  }
+  function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove("show"),1800)}
+
+  $("#undoBtn").onclick=undoLastAction;
+  window.addEventListener("keydown",e=>{
+    if(!(e.ctrlKey||e.metaKey)||e.altKey||e.shiftKey||String(e.key).toLowerCase()!=="z")return;
+    if(isTextEditingTarget(e.target))return;
+    e.preventDefault();undoLastAction();
+  });
+
+  // Clicking non-interactive blank space clears the current plate selection.
+  document.addEventListener("pointerdown",e=>{
+    if(drag||(e.pointerType==="mouse"&&e.button!==0))return;
+    if(e.target.closest("button,input,select,textarea,dialog,.well,.plate-head,.shared-label-panel,.sidebar,.topbar"))return;
+    const plate=getPlate();if(!plate)return;
+    const sel=getSelected(plate.id);if(!sel.size)return;
+    sel.clear();refreshPlateOnly(plate.id);renderSidebar();
+  });
+  let resizeTimer=null;window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(fitAllPlates,100)});
+  buildColorPalette();$("#bulkLabelColorPreview").style.background=newLabelColor;renderAll();updateUndoButton();
+})();
+</script>
+</body>
+</html>
