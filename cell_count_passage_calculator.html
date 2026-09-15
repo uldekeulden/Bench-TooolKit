@@ -162,7 +162,7 @@
     <div class="topbar-inner">
       <div class="brand"><span class="brand-mark" aria-hidden="true"></span><strong>Cell Math / Bench Tool</strong></div>
       <nav class="mini-nav" aria-label="Page navigation">
-        <a href="#counting">Counting</a><a href="#passaging">Passaging</a><a href="#reference">Reference</a>
+        <a href="#counting">Counting</a><a href="#passaging">Passaging</a><a href="#growth">Growth rate</a><a href="#reference">Reference</a>
       </nav>
     </div>
   </header>
@@ -173,14 +173,14 @@
         <div class="eyebrow">Research-use calculator · responsive single-file HTML</div>
         <h1>Count.<br>Seed.<br>Passage.</h1>
       </div>
-      <p class="hero-copy">Fast bench-side calculations for cell concentration, total yield, count-based seeding, and confluency-based passaging. Designed for desktop and phone use.</p>
+      <p class="hero-copy">Fast bench-side calculations for hemocytometer counts, dilution-corrected concentration, seeding, confluency-based passaging, and empirical growth-rate estimation. Designed for desktop and phone use.</p>
     </section>
     <div class="hazard-rule" aria-hidden="true"></div>
 
     <section class="section" id="counting">
       <div class="section-head">
         <div><div class="section-kicker">01 / Cell Counting</div><h2>From count to concentration.</h2></div>
-        <div class="section-note">Rule: <strong>cells/mL = (n ÷ 4) × 10⁴</strong>, where n is the total across 4 large squares. Medium volume is converted to mL before total-cell calculation.</div>
+        <div class="section-note">For a Neubauer hemocytometer, average the count per large square, multiply by <strong>10⁴</strong>, then correct for any sample dilution (e.g. Trypan Blue).</div>
       </div>
 
       <div class="grid-2">
@@ -188,9 +188,38 @@
           <div class="card-title"><h3>Count input</h3><span class="badge">Live</span></div>
           <div class="form-grid">
             <div class="field full">
-              <label for="countN">Total count across 4 squares (n)</label>
+              <label for="countN" id="countNLabel">Total viable count (n)</label>
               <input id="countN" type="number" min="0" step="any" inputmode="decimal" placeholder="e.g. 170" />
-              <div class="help">Sum of cells in all 4 large corner squares. For cells sitting on a boundary, count only those on two of the four outer edges (e.g. top and left) and skip the other two.</div>
+              <div class="help" id="countNHelp">Enter the total count across the large squares you counted. Boundary rule: include cells touching two chosen outer edges (e.g. top/left) and exclude the opposite two.</div>
+            </div>
+            <div class="field full">
+              <label for="countDivisor">How was n counted?</label>
+              <select id="countDivisor">
+                <option value="4" selected>Total across 4 large squares → n ÷ 4</option>
+                <option value="9">Total across 9 large squares → n ÷ 9</option>
+                <option value="1">One large square / already averaged → no division</option>
+              </select>
+            </div>
+            <div class="field full">
+              <label for="countDilutionMode">Dilution correction</label>
+              <select id="countDilutionMode">
+                <option value="ratio" selected>Sample : Trypan Blue / diluent ratio</option>
+                <option value="factor">Enter dilution factor directly</option>
+                <option value="none">No dilution (1×)</option>
+              </select>
+            </div>
+            <div class="field" id="countSamplePartsField">
+              <label for="countSampleParts">Cell sample parts</label>
+              <input id="countSampleParts" type="number" min="0.0001" step="any" inputmode="decimal" value="1" />
+            </div>
+            <div class="field" id="countDiluentPartsField">
+              <label for="countDiluentParts">Trypan Blue / diluent parts</label>
+              <input id="countDiluentParts" type="number" min="0" step="any" inputmode="decimal" value="1" />
+            </div>
+            <div class="field full" id="countDilutionFactorField" hidden>
+              <label for="countDilutionFactor">Dilution factor (×)</label>
+              <input id="countDilutionFactor" type="number" min="0.0001" step="any" inputmode="decimal" value="2" />
+              <div class="help">Enter the total dilution factor directly: 2 for a two-fold dilution, 20 for a 20-fold dilution, etc.</div>
             </div>
             <div class="field full">
               <label for="countVolume">Current suspension / medium volume</label>
@@ -200,17 +229,20 @@
               </div>
             </div>
           </div>
+          <div class="inline-alert" id="dilutionHint">1:1 cell sample : Trypan Blue means equal volumes and a 2× dilution. Example: 10 µL cells + 10 µL Trypan Blue.</div>
           <div class="actions"><button class="btn secondary" id="countReset" type="button">Reset</button></div>
-          <div class="formula">cells/mL = (n ÷ 4) × 10⁴<br>total cells = cells/mL × volume (mL)</div>
+          <div class="formula">cells/mL = (n ÷ number of large squares) × 10⁴ × dilution factor<br>ratio dilution factor = (sample parts + diluent parts) ÷ sample parts<br>total cells = cells/mL × volume (mL)</div>
         </article>
 
         <article class="card">
           <div class="card-title"><h3>Count result</h3><span class="badge uv">Output</span></div>
           <div class="results">
+            <div class="metric"><div class="metric-label">Average count</div><div><div class="metric-value" id="avgPerSquare">—</div><div class="metric-sub">cells / large square</div></div></div>
+            <div class="metric"><div class="metric-label">Dilution factor</div><div><div class="metric-value" id="countDilutionResult">—</div><div class="metric-sub">× correction applied</div></div></div>
             <div class="metric accent"><div class="metric-label">Cell concentration</div><div><div class="metric-value" id="cellsPerMl">—</div><div class="metric-sub">cells / mL</div></div></div>
             <div class="metric purple"><div class="metric-label">Total cells now</div><div><div class="metric-value" id="totalCells">—</div><div class="metric-sub">cells in current volume</div></div></div>
           </div>
-          <div class="inline-alert" id="countStatus">Enter the 4-square total and current volume to calculate.</div>
+          <div class="inline-alert" id="countStatus">Enter the cell count and current volume to calculate.</div>
         </article>
       </div>
     </section>
@@ -286,7 +318,10 @@
               </div>
               <div class="field">
                 <label for="growth24">24 h growth multiplier</label>
-                <input id="growth24" type="number" min="0.01" step="any" inputmode="decimal" value="2" />
+                <div class="control-row">
+                  <input id="growth24" type="number" min="0.01" step="any" inputmode="decimal" value="2" />
+                  <button class="btn secondary" id="importGrowth" type="button" style="padding-inline:11px">Use growth calc</button>
+                </div>
               </div>
               <div class="field">
                 <label for="currentVessel">Current culture vessel</label>
@@ -333,9 +368,54 @@
       </div>
     </section>
 
+    <section class="section" id="growth">
+      <div class="section-head">
+        <div><div class="section-kicker">03 / Growth Rate</div><h2>Infer growth from a real passage.</h2></div>
+        <div class="section-note">Estimate the average 24 h growth multiplier and doubling time from starting confluency, passage dilution, ending confluency, and elapsed time.</div>
+      </div>
+
+      <div class="grid-2">
+        <article class="card uv">
+          <div class="card-title"><h3>Observed growth</h3><span class="badge uv">Back-calculate</span></div>
+          <div class="form-grid">
+            <div class="field">
+              <label for="growthStartConfluency">Confluency before passage</label>
+              <div class="control-row"><input id="growthStartConfluency" type="number" min="0.1" max="100" step="any" inputmode="decimal" value="80" /><span style="align-self:center;color:#aaa;padding:0 8px">%</span></div>
+            </div>
+            <div class="field">
+              <label for="growthSplitFactor">Passage / dilution factor</label>
+              <input id="growthSplitFactor" type="number" min="0.0001" step="any" inputmode="decimal" value="10" />
+              <div class="help">Enter 10 for a 1:10 split (10× dilution; ~10% of cells retained). Enter 1 if there was no passage dilution.</div>
+            </div>
+            <div class="field">
+              <label for="growthEndConfluency">Confluency at endpoint</label>
+              <div class="control-row"><input id="growthEndConfluency" type="number" min="0.1" max="100" step="any" inputmode="decimal" value="100" /><span style="align-self:center;color:#aaa;padding:0 8px">%</span></div>
+            </div>
+            <div class="field">
+              <label for="growthElapsed">Elapsed time</label>
+              <div class="control-row"><input id="growthElapsed" type="number" min="0.0001" step="any" inputmode="decimal" value="4" /><select id="growthElapsedUnit" class="unit-select"><option value="d" selected>days</option><option value="h">hours</option></select></div>
+            </div>
+          </div>
+          <div class="formula">effective starting confluency ≈ starting confluency ÷ split factor<br>overall growth factor = ending confluency ÷ effective starting confluency<br>24 h multiplier = overall growth factor^(24 ÷ elapsed hours)<br>doubling time = 24 × ln(2) ÷ ln(24 h multiplier)</div>
+        </article>
+
+        <article class="card">
+          <div class="card-title"><h3>Growth result</h3><span class="badge">Average rate</span></div>
+          <div class="results">
+            <div class="metric"><div class="metric-label">Effective start after split</div><div><div class="metric-value" id="growthEffectiveStart">—</div><div class="metric-sub">confluency-equivalent</div></div></div>
+            <div class="metric"><div class="metric-label">Overall growth</div><div><div class="metric-value" id="growthOverallFactor">—</div><div class="metric-sub">× over the observed interval</div></div></div>
+            <div class="metric accent"><div class="metric-label">24 h growth multiplier</div><div><div class="metric-value" id="growthMultiplierResult">—</div><div class="metric-sub">× per 24 h</div></div></div>
+            <div class="metric purple"><div class="metric-label">Doubling time</div><div><div class="metric-value" id="growthDoublingResult">—</div><div class="metric-sub">hours</div></div></div>
+          </div>
+          <div class="inline-alert" id="growthStatus">Using the example values: 80% → 1:10 → 100% in 4 days.</div>
+          <div class="actions"><button class="btn primary" id="applyGrowth" type="button">Use in passaging</button></div>
+        </article>
+      </div>
+    </section>
+
     <section class="section" id="reference">
       <div class="section-head">
-        <div><div class="section-kicker">03 / Reference</div><h2>Culture-vessel area reference.</h2></div>
+        <div><div class="section-kicker">04 / Reference</div><h2>Culture-vessel area reference.</h2></div>
         <div class="section-note">Surface areas and approximate growth-medium volumes are drawn from Thermo Fisher's “Useful Numbers for Cell Culture,” except the ibidi 8-well chamber (manufacturer-specified area). Plate/chamber areas are per well.</div>
       </div>
       <div class="reference-grid" id="referenceGrid"></div>
@@ -344,7 +424,7 @@
 
     <footer>
       <div>Bench planning aid · not a substitute for cell-line-specific SOPs or empirical growth curves.</div>
-      <div>References: <a href="https://getdesign.md/sentry/design-md" target="_blank" rel="noreferrer">design system</a> · <a href="https://www.thermofisher.com/us/en/home/references/gibco-cell-culture-basics/cell-culture-protocols/cell-culture-useful-numbers.html" target="_blank" rel="noreferrer">Thermo Fisher culture-vessel numbers</a></div>
+      <div>References: <a href="https://getdesign.md/sentry/design-md" target="_blank" rel="noreferrer">design system</a> · <a href="https://www.thermofisher.com/us/en/home/references/gibco-cell-culture-basics/cell-culture-protocols/counting-cells-in-a-hemacytometer.html" target="_blank" rel="noreferrer">Thermo Fisher hemocytometer counting</a> · <a href="https://www.thermofisher.com/us/en/home/references/gibco-cell-culture-basics/cell-culture-protocols/cell-culture-useful-numbers.html" target="_blank" rel="noreferrer">culture-vessel numbers</a></div>
     </footer>
   </main>
 
@@ -411,22 +491,69 @@
       $('targetVesselHelp').textContent=`Reference growth area: ${t.area} cm².`;
     }
 
+    function updateCountDilutionUI(){
+      const mode=$('countDilutionMode').value;
+      $('countSamplePartsField').hidden=mode!=='ratio';
+      $('countDiluentPartsField').hidden=mode!=='ratio';
+      $('countDilutionFactorField').hidden=mode!=='factor';
+      if(mode==='none'){
+        setStatus($('dilutionHint'),'No dilution correction will be applied (1×).','ok');
+      } else if(mode==='factor'){
+        const f=parseFloat($('countDilutionFactor').value);
+        const msg=finitePositive(f)?`Direct dilution correction: ${formatNumber(f,3)}×. For example, enter 20 for a 20-fold dilution.`:'Enter the total dilution factor (for example, 2 or 20).';
+        setStatus($('dilutionHint'),msg,finitePositive(f)?'ok':'');
+      } else {
+        const sample=parseFloat($('countSampleParts').value);
+        const diluent=parseFloat($('countDiluentParts').value);
+        if(finitePositive(sample) && Number.isFinite(diluent) && diluent>=0){
+          const f=(sample+diluent)/sample;
+          const sampleText=formatNumber(sample,3), diluentText=formatNumber(diluent,3);
+          let msg=`${sampleText}:${diluentText} cell sample : Trypan Blue/diluent → ${formatNumber(f,3)}× dilution.`;
+          if(Math.abs(sample-1)<1e-9 && Math.abs(diluent-1)<1e-9) msg+=' Example: 10 µL cells + 10 µL Trypan Blue.';
+          if(Math.abs(sample-1)<1e-9 && Math.abs(diluent-20)<1e-9) msg+=' Note: 1 part sample + 20 parts diluent is 21× total dilution; if you mean a 20-fold total dilution, use “Enter dilution factor directly” and enter 20.';
+          setStatus($('dilutionHint'),msg,'ok');
+        } else {
+          setStatus($('dilutionHint'),'Enter a positive sample part and a non-negative Trypan Blue/diluent part.');
+        }
+      }
+    }
+
+    function getCountDilutionFactor(){
+      const mode=$('countDilutionMode').value;
+      if(mode==='none') return 1;
+      if(mode==='factor'){
+        const f=parseFloat($('countDilutionFactor').value);
+        return finitePositive(f)?f:NaN;
+      }
+      const sample=parseFloat($('countSampleParts').value);
+      const diluent=parseFloat($('countDiluentParts').value);
+      if(!finitePositive(sample) || !(Number.isFinite(diluent)&&diluent>=0)) return NaN;
+      return (sample+diluent)/sample;
+    }
+
     function calcCount(){
       const n=parseFloat($('countN').value);
+      const divisor=parseFloat($('countDivisor').value);
+      const dilution=getCountDilutionFactor();
       const vol=parseFloat($('countVolume').value);
       const unit=$('countVolumeUnit').value;
-      if(!(Number.isFinite(n)&&n>=0) || !(Number.isFinite(vol)&&vol>=0)){
-        $('cellsPerMl').textContent='—';$('totalCells').textContent='—';
-        setStatus($('countStatus'),'Enter the 4-square total and current volume to calculate.');
+      updateCountDilutionUI();
+      if(!(Number.isFinite(n)&&n>=0) || !finitePositive(divisor) || !finitePositive(dilution) || !(Number.isFinite(vol)&&vol>=0)){
+        ['avgPerSquare','countDilutionResult','cellsPerMl','totalCells'].forEach(id=>$(id).textContent='—');
+        setStatus($('countStatus'),'Enter a valid cell count, dilution, and current volume to calculate.');
         return null;
       }
-      const concentration=(n/4)*1e4;
+      const avg=n/divisor;
+      const concentration=avg*1e4*dilution;
       const volMl=unit==='uL'?vol/1000:vol;
       const total=concentration*volMl;
+      $('avgPerSquare').textContent=formatNumber(avg);
+      $('countDilutionResult').textContent=`${formatNumber(dilution,3)}×`;
       $('cellsPerMl').textContent=formatNumber(concentration);
       $('totalCells').textContent=formatNumber(total);
-      setStatus($('countStatus'),`${formatNumber(n)} ÷ 4 = ${formatNumber(n/4)} per square; × 10⁴ = ${formatNumber(concentration)} cells/mL; ${formatNumber(volMl)} mL contains ${formatNumber(total)} cells.`,'ok');
-      return {concentration,total,volMl};
+      const divisionText=divisor===1?'no averaging division':`÷ ${formatNumber(divisor,0)}`;
+      setStatus($('countStatus'),`${formatNumber(n)} ${divisionText} = ${formatNumber(avg)} cells/large square; ×10⁴ × ${formatNumber(dilution,3)} dilution = ${formatNumber(concentration)} cells/mL. ${formatNumber(volMl)} mL contains ${formatNumber(total)} cells.`,'ok');
+      return {concentration,total,volMl,dilution,avg};
     }
 
     function calcSeed(){
@@ -509,6 +636,43 @@
       setStatus($('confluencyStatus'),msg,type);
     }
 
+    function calcGrowthRate(){
+      const start=parseFloat($('growthStartConfluency').value);
+      const split=parseFloat($('growthSplitFactor').value);
+      const end=parseFloat($('growthEndConfluency').value);
+      const elapsed=parseFloat($('growthElapsed').value);
+      const hours=$('growthElapsedUnit').value==='d'?elapsed*24:elapsed;
+      const valid=finitePositive(start)&&start<=100&&finitePositive(split)&&finitePositive(end)&&end<=100&&finitePositive(hours);
+      if(!valid){
+        ['growthEffectiveStart','growthOverallFactor','growthMultiplierResult','growthDoublingResult'].forEach(id=>$(id).textContent='—');
+        setStatus($('growthStatus'),'Enter valid starting/ending confluency, passage dilution, and elapsed time.');
+        return null;
+      }
+      const effectiveStart=start/split;
+      const overall=end/effectiveStart;
+      const multiplier=Math.pow(overall,24/hours);
+      $('growthEffectiveStart').textContent=formatPercent(effectiveStart);
+      $('growthOverallFactor').textContent=`${formatNumber(overall,3)}×`;
+      $('growthMultiplierResult').textContent=`${formatNumber(multiplier,3)}×`;
+      let doubling=NaN;
+      if(multiplier>1){
+        doubling=24*Math.log(2)/Math.log(multiplier);
+        $('growthDoublingResult').textContent=formatNumber(doubling,2);
+      } else if(Math.abs(multiplier-1)<1e-12){
+        $('growthDoublingResult').textContent='∞';
+      } else {
+        $('growthDoublingResult').textContent='N/A';
+      }
+      let msg=`${formatPercent(start)} before passage ÷ ${formatNumber(split,3)} = ${formatPercent(effectiveStart)} effective starting confluency; reaching ${formatPercent(end)} after ${formatNumber(hours,2)} h implies ${formatNumber(multiplier,3)}× growth per 24 h.`;
+      let type='ok';
+      if(multiplier>1) msg+=` Estimated doubling time: ${formatNumber(doubling,2)} h.`;
+      else if(Math.abs(multiplier-1)<1e-12) msg+=' No net growth was observed, so doubling time is infinite.';
+      else {msg+=' Net cell-equivalent occupancy declined, so a positive doubling time cannot be estimated.';type='';}
+      if(start>=90 || end>=90) msg+=' Because confluency is high, contact inhibition and nonlinearity may make this an average effective growth rate rather than the true low-density exponential rate.';
+      setStatus($('growthStatus'),msg,type);
+      return {multiplier,doubling,effectiveStart,overall,hours};
+    }
+
     function switchMode(mode){
       const count=mode==='count';
       $('panelCount').hidden=!count;$('panelConfluency').hidden=count;
@@ -524,7 +688,7 @@
       else setStatus($('seedStatus'),'Complete the Cell Counting section first.','error');
     });
     $('countReset').addEventListener('click',()=>{
-      $('countN').value='';$('countVolume').value='';$('countVolumeUnit').value='mL';calcCount();
+      $('countN').value='';$('countDivisor').value='4';$('countDilutionMode').value='ratio';$('countSampleParts').value='1';$('countDiluentParts').value='1';$('countDilutionFactor').value='2';$('countVolume').value='';$('countVolumeUnit').value='mL';updateCountDilutionUI();calcCount();
     });
     $('seedVessel').addEventListener('change',()=>{
       updateVesselHelp();
@@ -533,9 +697,34 @@
       calcSeed();
     });
     ['currentVessel','targetVessel'].forEach(id=>$(id).addEventListener('change',()=>{updateVesselHelp();calcConfluency();}));
-    ['countN','countVolume','countVolumeUnit'].forEach(id=>$(id).addEventListener('input',calcCount));
+    ['countN','countDivisor','countDilutionMode','countSampleParts','countDiluentParts','countDilutionFactor','countVolume','countVolumeUnit'].forEach(id=>{
+      $(id).addEventListener('input',calcCount);
+      $(id).addEventListener('change',calcCount);
+    });
     ['seedConcentration','seedTargetCells','seedVesselCount','seedFinalVolume','seedFinalVolumeUnit'].forEach(id=>$(id).addEventListener('input',calcSeed));
     ['currentConfluency','growth24','cultureTime','cultureTimeUnit','desiredConfluency','targetVesselCount','currentVesselCount'].forEach(id=>$(id).addEventListener('input',calcConfluency));
+    ['growthStartConfluency','growthSplitFactor','growthEndConfluency','growthElapsed','growthElapsedUnit'].forEach(id=>{
+      $(id).addEventListener('input',calcGrowthRate);
+      $(id).addEventListener('change',calcGrowthRate);
+    });
+    $('applyGrowth').addEventListener('click',()=>{
+      const r=calcGrowthRate();
+      if(r && finitePositive(r.multiplier)){
+        $('growth24').value=String(r.multiplier);
+        calcConfluency();
+        setStatus($('confluencyStatus'),`24 h growth multiplier imported from Growth Rate: ${formatNumber(r.multiplier,3)}×.`,'ok');
+        document.getElementById('passaging').scrollIntoView({behavior:'smooth',block:'start'});
+      }
+    });
+    $('importGrowth').addEventListener('click',()=>{
+      const r=calcGrowthRate();
+      if(r && finitePositive(r.multiplier)){
+        $('growth24').value=String(r.multiplier);calcConfluency();
+        setStatus($('confluencyStatus'),`24 h growth multiplier imported: ${formatNumber(r.multiplier,3)}×.`,'ok');
+      } else {
+        setStatus($('confluencyStatus'),'Complete the Growth Rate section first.','error');
+      }
+    });
 
     const refGroups=['Dish','Plate','Flask','Chamber'];
     refGroups.forEach(g=>{
@@ -548,7 +737,8 @@
 
     updateVesselHelp();
     $('seedFinalVolume').placeholder=`suggested ~${vesselById($('seedVessel').value).mediumMid} mL`;
-    calcCount();calcSeed();calcConfluency();
+    updateCountDilutionUI();
+    calcCount();calcSeed();calcConfluency();calcGrowthRate();
   </script>
 </body>
 </html>
