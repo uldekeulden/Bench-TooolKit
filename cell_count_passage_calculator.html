@@ -70,6 +70,13 @@
       padding:8px 12px;font:700 11px/1 "Rubik",sans-serif;letter-spacing:.07em;text-transform:uppercase;
     }
     .mini-nav a:hover{border-color:var(--purple);color:var(--purple)}
+    .fmt{display:flex;align-items:center;gap:8px;flex-shrink:0}
+    .fmt-label{font:700 10px/1 "Rubik",sans-serif;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+    .fmt-select{
+      width:auto;min-width:112px;padding:8px 10px;border-radius:var(--radius-pill);
+      border:1px solid rgba(54,45,89,.22);background:#fff;color:var(--soft);font-size:12px;font-weight:600;
+    }
+    .value-echo{font-size:11px;color:var(--purple);font-weight:600;line-height:1.35}
     .hero{padding:44px 0 26px;display:grid;grid-template-columns:1.4fr .6fr;gap:24px;align-items:end}
     .eyebrow{font:700 11px/1.2 "Rubik",sans-serif;letter-spacing:.13em;text-transform:uppercase;color:var(--purple);margin-bottom:12px}
     h1{
@@ -144,6 +151,9 @@
     @media (max-width:560px){
       .topbar-inner{align-items:flex-start}
       .mini-nav{display:none}
+      .topbar-inner{align-items:center;gap:10px}
+      .fmt-label{display:none}
+      .fmt-select{min-width:104px}
       .shell{padding-inline:12px}
       .hero{padding-top:24px}
       h1{font-size:clamp(40px,15vw,64px)}
@@ -161,6 +171,14 @@
   <header class="topbar">
     <div class="topbar-inner">
       <div class="brand"><span class="brand-mark" aria-hidden="true"></span><strong>Cell Math / Bench Tool</strong></div>
+      <div class="fmt">
+        <label class="fmt-label" for="cellFormat">Cell number</label>
+        <select id="cellFormat" class="fmt-select" aria-label="Cell number display format">
+          <option value="comma" selected>1,234,567</option>
+          <option value="sci">1.23×10⁶</option>
+          <option value="e">1.23e6</option>
+        </select>
+      </div>
       <nav class="mini-nav" aria-label="Page navigation">
         <a href="#counting">Counting</a><a href="#passaging">Passaging</a><a href="#growth">Growth rate</a><a href="#reference">Reference</a>
       </nav>
@@ -269,10 +287,12 @@
                   <input id="seedConcentration" type="number" min="0" step="any" inputmode="decimal" placeholder="cells/mL" />
                   <button class="btn secondary" id="importCount" type="button" style="padding-inline:11px">Use count</button>
                 </div>
+                <div class="value-echo" id="seedConcentrationEcho"></div>
               </div>
               <div class="field">
                 <label for="seedTargetCells">Target cells per well / dish</label>
-                <input id="seedTargetCells" type="number" min="0" step="any" inputmode="decimal" placeholder="e.g. 200000" />
+                <input id="seedTargetCells" type="number" min="0" step="any" inputmode="decimal" placeholder="e.g. 200000 or 2e5" />
+                <div class="value-echo" id="seedTargetCellsEcho"></div>
               </div>
               <div class="field">
                 <label for="seedVesselCount">Number of wells / dishes</label>
@@ -297,10 +317,10 @@
           <article class="card">
             <div class="card-title"><h3>Seeding result</h3><span class="badge">Per vessel</span></div>
             <div class="results">
-              <div class="metric accent"><div class="metric-label">Cell suspension</div><div><div class="metric-value" id="seedUlPerVessel">—</div><div class="metric-sub">µL per well / dish</div></div></div>
-              <div class="metric"><div class="metric-label">Total suspension</div><div><div class="metric-value" id="seedTotalUl">—</div><div class="metric-sub">µL for all vessels</div></div></div>
+              <div class="metric accent"><div class="metric-label">Cell suspension</div><div><div class="metric-value" id="seedUlPerVessel">—</div><div class="metric-sub" id="seedUlPerVesselSub">µL per well / dish</div></div></div>
+              <div class="metric"><div class="metric-label">Total suspension</div><div><div class="metric-value" id="seedTotalUl">—</div><div class="metric-sub" id="seedTotalUlSub">µL for all vessels</div></div></div>
               <div class="metric purple"><div class="metric-label">Total target cells</div><div><div class="metric-value" id="seedTotalCells">—</div><div class="metric-sub">cells across all vessels</div></div></div>
-              <div class="metric"><div class="metric-label">Fresh medium</div><div><div class="metric-value" id="seedMediumPerVessel">—</div><div class="metric-sub">µL per vessel, if final volume is set</div></div></div>
+              <div class="metric"><div class="metric-label">Fresh medium</div><div><div class="metric-value" id="seedMediumPerVessel">—</div><div class="metric-sub" id="seedMediumPerVesselSub">µL per vessel, if final volume is set</div></div></div>
             </div>
             <div class="inline-alert" id="seedStatus">Enter concentration and target cells to calculate.</div>
           </article>
@@ -460,6 +480,55 @@
       return v.toLocaleString(undefined,{maximumFractionDigits:digits});
     }
     function formatPercent(v){ return Number.isFinite(v) ? `${v.toLocaleString(undefined,{maximumFractionDigits:2})}%` : '—'; }
+
+    /* ---- cell-number display: 1,234,567 | 1.23×10⁶ | 1.23e6 ---- */
+    let cellFormat='comma';
+    const SUPERS={'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
+    function superscript(n){ return String(n).split('').map(c=>SUPERS[c]||c).join(''); }
+    function sciParts(v,sig=3){
+      let exp=Math.floor(Math.log10(Math.abs(v)));
+      let mant=Number((v/Math.pow(10,exp)).toPrecision(sig));
+      if(Math.abs(mant)>=10){ mant=Number((mant/10).toPrecision(sig)); exp+=1; }
+      return {mant:Number(mant), exp};
+    }
+    function withCommas(v){
+      const a=Math.abs(v);
+      const digits = a>=1000 ? 0 : a>=10 ? 1 : a>=1 ? 2 : 3;
+      return v.toLocaleString('en-US',{maximumFractionDigits:digits});
+    }
+    function formatCells(v, mode=cellFormat){
+      if(!Number.isFinite(v)) return '—';
+      if(v===0) return '0';
+      if(mode==='comma' && Math.abs(v)<1e15) return withCommas(v);
+      if(Math.abs(v)<1000) return withCommas(v);
+      const {mant,exp}=sciParts(v,3);
+      if(exp===0) return String(mant);
+      if(mode==='e') return `${mant}e${exp}`;
+      return `${mant}×10${superscript(exp)}`;
+    }
+
+    /* ---- volume display: µL below 2000, mL at or above ---- */
+    const VOL_SWITCH=2000;
+    function formatVolume(ul){
+      if(!Number.isFinite(ul)) return {value:'—',unit:'µL'};
+      const a=Math.abs(ul);
+      if(a>=VOL_SWITCH){
+        const ml=ul/1000;
+        const d=Math.abs(ml)>=100?1:2;
+        return {value:ml.toLocaleString('en-US',{maximumFractionDigits:d}),unit:'mL'};
+      }
+      const d=a>=100?0:a>=10?1:2;
+      return {value:ul.toLocaleString('en-US',{maximumFractionDigits:d}),unit:'µL'};
+    }
+    function volText(ul){
+      const f=formatVolume(ul);
+      return f.value==='—'?'—':`${f.value} ${f.unit}`;
+    }
+    function setVolumeMetric(valueId, subId, ul, subTail){
+      const f=formatVolume(ul);
+      $(valueId).textContent=f.value;
+      if(subId) $(subId).textContent=`${f.unit} ${subTail}`;
+    }
     function setStatus(el, msg, type=''){
       el.textContent=msg;
       el.className='inline-alert'+(type?` ${type}`:'');
@@ -547,12 +616,12 @@
       const concentration=avg*1e4*dilution;
       const volMl=unit==='uL'?vol/1000:vol;
       const total=concentration*volMl;
-      $('avgPerSquare').textContent=formatNumber(avg);
+      $('avgPerSquare').textContent=withCommas(avg);
       $('countDilutionResult').textContent=`${formatNumber(dilution,3)}×`;
-      $('cellsPerMl').textContent=formatNumber(concentration);
-      $('totalCells').textContent=formatNumber(total);
+      $('cellsPerMl').textContent=formatCells(concentration);
+      $('totalCells').textContent=formatCells(total);
       const divisionText=divisor===1?'no averaging division':`÷ ${formatNumber(divisor,0)}`;
-      setStatus($('countStatus'),`${formatNumber(n)} ${divisionText} = ${formatNumber(avg)} cells/large square; ×10⁴ × ${formatNumber(dilution,3)} dilution = ${formatNumber(concentration)} cells/mL. ${formatNumber(volMl)} mL contains ${formatNumber(total)} cells.`,'ok');
+      setStatus($('countStatus'),`${withCommas(n)} ${divisionText} = ${withCommas(avg)} cells/large square; ×10⁴ × ${formatNumber(dilution,3)} dilution = ${formatCells(concentration)} cells/mL. ${volText(volMl*1000)} contains ${formatCells(total)} cells.`,'ok');
       return {concentration,total,volMl,dilution,avg};
     }
 
@@ -562,33 +631,39 @@
       const count=Math.max(1,parseInt($('seedVesselCount').value||'1',10));
       const finalVol=parseFloat($('seedFinalVolume').value);
       const finalUnit=$('seedFinalVolumeUnit').value;
+      $('seedConcentrationEcho').textContent=finitePositive(c)?`= ${formatCells(c)} cells/mL`:'';
+      $('seedTargetCellsEcho').textContent=(Number.isFinite(target)&&target>0)?`= ${formatCells(target)} cells / vessel`:'';
       if(!finitePositive(c) || !(Number.isFinite(target)&&target>=0)){
         ['seedUlPerVessel','seedTotalUl','seedTotalCells','seedMediumPerVessel'].forEach(id=>$(id).textContent='—');
+        $('seedUlPerVesselSub').textContent='µL per well / dish';
+        $('seedTotalUlSub').textContent='µL for all vessels';
+        $('seedMediumPerVesselSub').textContent='µL per vessel, if final volume is set';
         setStatus($('seedStatus'),'Enter concentration and target cells to calculate.');
         return;
       }
       const ul=(target/c)*1000;
       const totalUl=ul*count;
       const totalCells=target*count;
-      $('seedUlPerVessel').textContent=formatNumber(ul);
-      $('seedTotalUl').textContent=formatNumber(totalUl);
-      $('seedTotalCells').textContent=formatNumber(totalCells);
-      let mediumText='—';
-      let status=`Add ${formatNumber(ul)} µL of cell suspension to each vessel.`;
+      setVolumeMetric('seedUlPerVessel','seedUlPerVesselSub',ul,'per well / dish');
+      setVolumeMetric('seedTotalUl','seedTotalUlSub',totalUl,'for all vessels');
+      $('seedTotalCells').textContent=formatCells(totalCells);
+      let status=`Add ${volText(ul)} of cell suspension to each vessel (${volText(totalUl)} total for ${count} ${count===1?'vessel':'vessels'}).`;
       let statusType='ok';
+      $('seedMediumPerVessel').textContent='—';
+      $('seedMediumPerVesselSub').textContent='µL per vessel, if final volume is set';
       if(Number.isFinite(finalVol) && finalVol>=0){
         const finalUl=finalUnit==='mL'?finalVol*1000:finalVol;
         const mediumUl=finalUl-ul;
         if(mediumUl>=0){
-          mediumText=formatNumber(mediumUl);
-          status+=` Add ${formatNumber(mediumUl)} µL fresh medium to reach ${formatNumber(finalUl)} µL total.`;
+          setVolumeMetric('seedMediumPerVessel','seedMediumPerVesselSub',mediumUl,'per vessel');
+          status+=` Add ${volText(mediumUl)} fresh medium to reach ${volText(finalUl)} total.`;
         } else {
-          mediumText='0';
-          status=`Required cell suspension (${formatNumber(ul)} µL) exceeds your chosen final volume (${formatNumber(finalUl)} µL). Concentrate the cells or increase final volume.`;
+          $('seedMediumPerVessel').textContent='0';
+          $('seedMediumPerVesselSub').textContent='insufficient final volume';
+          status=`Required cell suspension (${volText(ul)}) exceeds your chosen final volume (${volText(finalUl)}). Concentrate the cells or increase final volume.`;
           statusType='error';
         }
       }
-      $('seedMediumPerVessel').textContent=mediumText;
       setStatus($('seedStatus'),status,statusType);
     }
 
@@ -684,7 +759,7 @@
     $('tabConfluency').addEventListener('click',()=>switchMode('confluency'));
     $('importCount').addEventListener('click',()=>{
       const r=calcCount();
-      if(r){$('seedConcentration').value=String(r.concentration);calcSeed();setStatus($('seedStatus'),'Imported the latest cell-count concentration. Enter target cells per vessel.','ok');}
+      if(r){$('seedConcentration').value=String(Number(r.concentration.toPrecision(6)));calcSeed();setStatus($('seedStatus'),'Imported the latest cell-count concentration. Enter target cells per vessel.','ok');}
       else setStatus($('seedStatus'),'Complete the Cell Counting section first.','error');
     });
     $('countReset').addEventListener('click',()=>{
@@ -735,10 +810,21 @@
       });
     });
 
+    function rerenderAll(){ calcCount();calcSeed();calcConfluency();calcGrowthRate(); }
+    $('cellFormat').addEventListener('change',()=>{
+      cellFormat=$('cellFormat').value;
+      try{ localStorage.setItem('cellFormat',cellFormat); }catch(e){}
+      rerenderAll();
+    });
+    try{
+      const saved=localStorage.getItem('cellFormat');
+      if(saved && ['comma','sci','e'].includes(saved)){ cellFormat=saved; $('cellFormat').value=saved; }
+    }catch(e){}
+
     updateVesselHelp();
     $('seedFinalVolume').placeholder=`suggested ~${vesselById($('seedVessel').value).mediumMid} mL`;
     updateCountDilutionUI();
-    calcCount();calcSeed();calcConfluency();calcGrowthRate();
+    rerenderAll();
   </script>
 </body>
 </html>
